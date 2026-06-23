@@ -9,11 +9,14 @@ import { ArrowRight, Camera, Check } from "lucide-react";
 export default function Signup() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState({ displayName: "", username: "", email: "", password: "", phone: "", bio: "" });
+  const [form, setForm] = useState({ username: "", email: "", password: "", bio: "" });
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
   const next = (e) => { e.preventDefault(); setStep((s) => s + 1); };
-  const finish = (e) => { e.preventDefault(); navigate("/home"); };
+  const finish = (e) => { 
+    e.preventDefault();
+    
+  };
 
   return (
     <div className="min-h-screen bg-mesh flex items-center justify-center p-6">
@@ -23,13 +26,13 @@ export default function Signup() {
         <div className="glass-strong rounded-4xl p-8 sm:p-10 shadow-elegant border">
           {/* Step indicator */}
           <div className="flex items-center gap-2 mb-8">
-            {[1,2,3].map((n) => (
+            {[1,2].map((n) => (
               <div key={n} className="flex-1 flex items-center gap-2">
                 <div className={`h-8 w-8 rounded-full grid place-items-center text-xs font-semibold transition
                   ${step >= n ? "bg-gradient-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
                   {step > n ? <Check className="h-4 w-4" /> : n}
                 </div>
-                {n < 3 && <div className={`h-0.5 flex-1 rounded-full ${step > n ? "bg-gradient-primary" : "bg-muted"}`} />}
+                {n < 2 && <div className={`h-0.5 flex-1 rounded-full ${step > n ? "bg-gradient-primary" : "bg-muted"}`} />}
               </div>
             ))}
           </div>
@@ -37,23 +40,21 @@ export default function Signup() {
           <div className="mb-8 space-y-2">
             <h2 className="font-display text-3xl font-semibold">
               {step === 1 && "Create your account"}
-              {step === 2 && "Claim your handle"}
-              {step === 3 && "Make it yours"}
+              {step === 2 && "Style It"}
             </h2>
             <p className="text-muted-foreground">
               {step === 1 && "Just the essentials to get you in."}
-              {step === 2 && "Your unique username is how friends find you."}
-              {step === 3 && "Add a face and a few words. You can edit anytime."}
+              {step === 2 && "Add a face and a few words. You can edit anytime."}
             </p>
           </div>
 
           {step === 1 && (
             <form onSubmit={next} className="space-y-4">
-              <FieldRow label="Display name">
-                <Input value={form.displayName} onChange={set("displayName")} required className="h-12 rounded-2xl bg-background/60" placeholder="Ava Sinclair" />
+              <FieldRow label="username">
+                <Input value={form.username} onChange={set("username")} required className="h-12 rounded-2xl bg-background/60" placeholder="Mo Lester" />
               </FieldRow>
               <FieldRow label="Email">
-                <Input type="email" value={form.email} onChange={set("email")} required className="h-12 rounded-2xl bg-background/60" placeholder="you@pulse.app" />
+                <Input type="email" value={form.email} onChange={set("email")} required className="h-12 rounded-2xl bg-background/60" placeholder="test@gmail.app" />
               </FieldRow>
               <FieldRow label="Password">
                 <Input type="password" value={form.password} onChange={set("password")} required className="h-12 rounded-2xl bg-background/60" placeholder="At least 8 characters" />
@@ -62,22 +63,8 @@ export default function Signup() {
             </form>
           )}
 
-          {step === 2 && (
-            <form onSubmit={next} className="space-y-4">
-              <FieldRow label="Username" hint="Letters, numbers, dots. Unique across Pulse.">
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">@</span>
-                  <Input value={form.username} onChange={set("username")} required className="pl-9 h-12 rounded-2xl bg-background/60" placeholder="ava.s" />
-                </div>
-              </FieldRow>
-              <FieldRow label="Phone number" hint="So friends can find you by number too.">
-                <Input value={form.phone} onChange={set("phone")} className="h-12 rounded-2xl bg-background/60" placeholder="+1 (415) 555 0000" />
-              </FieldRow>
-              <SubmitBtn label="Continue" />
-            </form>
-          )}
 
-          {step === 3 && (
+          {step === 2 && (
             <form onSubmit={finish} className="space-y-5">
               <div className="flex items-center gap-5">
                 <div className="relative">
@@ -96,7 +83,7 @@ export default function Signup() {
               <FieldRow label="Bio" hint="A sentence or two — what are you about?">
                 <Textarea value={form.bio} onChange={set("bio")} rows={3} className="rounded-2xl bg-background/60 resize-none" placeholder="Designer, dreamer, occasional baker." />
               </FieldRow>
-              <SubmitBtn label="Enter Pulse" />
+              <SubmitBtn label="Enter VAU" />
             </form>
           )}
 

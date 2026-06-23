@@ -14,13 +14,27 @@ const userSchema = new mongoose.Schema({
     },
     password : {
         type : String,
-        required : true
+        select : false
+    },
+    providers : {
+        local :{
+            enabled : {
+                type : Boolean ,
+                default : false
+            }
+        },
+        google : {
+            id: String
+        },
+        X : {
+            id : String
+        }
     },
     publicKey : {
         type : String , 
-        required : true
     },
     avatar : String,
+    bio : String,
     lastSeen : Date,
     contacts : [{
         type : mongoose.Schema.Types.ObjectId ,
@@ -30,12 +44,12 @@ const userSchema = new mongoose.Schema({
 
 
 userSchema.pre("save" , async function (next) {
-    if(!this.isModified("password")) return;
+    if(!this.password || !this.isModified("password")) return;
     this.password = await bcrypt.hash(this.password , 10);
-    next();
 })
 
 userSchema.methods.comparePass = async function (password) {
+    if(!this.password) return false;
     return await bcrypt.compare(password , this.password);
 
 }

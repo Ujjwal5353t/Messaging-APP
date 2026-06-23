@@ -7,9 +7,9 @@ app.use(cors());
 app.use(express.json());
 
 
-app.get("/" , (req , res) => {
-    res.send("Working");
-})
+import authRouter from "./routes/auth.routes.js"
+
+app.use("/auth" , authRouter);
 
 
 export default app;

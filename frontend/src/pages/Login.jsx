@@ -12,6 +12,10 @@ export default function Login() {
   const onSubmit = (e) => {
     e.preventDefault();
     setLoading(true);
+
+    
+
+
     setTimeout(() => navigate("/home"), 600);
   };
 
