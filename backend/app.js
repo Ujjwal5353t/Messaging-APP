@@ -11,5 +11,8 @@ import authRouter from "./routes/auth.routes.js"
 
 app.use("/auth" , authRouter);
 
+app.get("/" , (req , res) => {
+    res.send("Hello world")
+} )
 
 export default app;

@@ -9,29 +9,24 @@ const userSchema = new mongoose.Schema({
     },
     email : {
         type : String,
-        required : true , 
-        unique : true
+        required : function(){
+            const hasTwitter = this.providers?.some(p => p.provider === "twitter");
+            return !hasTwitter
+        } , 
+        unique : true,
+        sparse : true
     },
     password : {
         type : String,
         select : false
     },
-    providers : {
-        local :{
-            enabled : {
-                type : Boolean ,
-                default : false
-            }
-        },
-        google : {
-            id: String
-        },
-        X : {
-            id : String
-        }
-    },
+    providers : [{
+        provider : String,
+        providerId : String
+    }],
     publicKey : {
         type : String , 
+        unique : true
     },
     avatar : String,
     bio : String,

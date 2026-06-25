@@ -18,17 +18,6 @@ export const registerUserSchema = z.object({
       .string()
       .min(6, "Password length must be at least 6 characters long")
       .optional(),
-    providers: z.object({
-      local: z.object({
-        enabled: z.boolean().default(false)
-      }).optional(),
-      google: z.object({
-        id: z.string()
-      }).optional(),
-      X: z.object({
-        id: z.string()
-      }).optional()
-    }),
 
     publicKey: z
       .string()
@@ -38,7 +27,9 @@ export const registerUserSchema = z.object({
       .string()
       .url("Avatar must be a valid URL string")
       .optional(),
-      
+    bio : z
+      .string()
+      .optional(),
     contacts: z
       .array(z.string().regex(objectIdRegex, "Invalid contact user ID"))
       .optional()
@@ -65,7 +56,14 @@ export const socialLoginSchema = z.object({
 
 export const loginUserSchema = z.object({
     body : z.object({
-        email : z.string().email("Invalid email format").toLowerCase().trim(),
-        password : z.string().min(1,"Password is required")
+        identifier : z.string().email("Invalid email or Username").toLowerCase().trim(),
+        password : z.string().min(6,"Password must be atleast 6 character long")
     })
+});
+
+
+export const socialAuthSchema = z.object({
+  body: z.object({
+    idToken: z.string().min(1),
+  }),
 });

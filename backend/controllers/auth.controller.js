@@ -1,9 +1,9 @@
 import { success } from "zod";
-import { addUser, getUser } from "../services/auth.service.js";
+import {  loginLocal, singupLocal } from "../services/auth.service.js";
 
-export const registerUser = async function(req, res) {
+export const registerUserLocal = async function(req, res) {
     try{
-        const user = await addUser(req.body);
+        const user = await singupLocal(req.body);
 
         return res.status(201).json({
             success : true,
@@ -21,14 +21,15 @@ export const registerUser = async function(req, res) {
 }
 
 
-export const loginUser = async (req , res) => {
+export const loginUserLocal = async (req , res) => {
     try{
-        const user = await getUser(req.body);
+        const user = await loginLocal(req.body);
 
         return res.status(200).json({
             success : true,
             action : "login",
-            message : "user logged in successfully"
+            message : "user logged in successfully",
+            token : user.token
         })
     } catch(err){
         return res.status(401).json({

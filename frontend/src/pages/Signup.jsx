@@ -1,10 +1,12 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { localSignup } from "@/Authentication/localSignup";
 import Logo from "@/components/common/Logo";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight, Camera, Check } from "lucide-react";
+// Added ArrowLeft here
+import { ArrowRight, ArrowLeft, Camera, Check, Loader2 } from "lucide-react";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -12,10 +14,34 @@ export default function Signup() {
   const [form, setForm] = useState({ username: "", email: "", password: "", bio: "" });
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
   const next = (e) => { e.preventDefault(); setStep((s) => s + 1); };
-  const finish = (e) => { 
-    e.preventDefault();
-    
+  
+  // Added back navigation handler
+  const prev = () => { setStep((s) => s - 1); };
+
+  const finish = async (e) => {
+    setLoading(true);
+    setError("");
+
+    try {
+      await localSignup({
+        e,
+        form,
+        navigate,
+      });
+    } catch (err) {
+      console.log("BACKEND RESPONSE:", err.response?.data);
+      setError(
+        err?.response?.data?.message ||
+        err?.message ||
+        "Something went wrong"
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -26,7 +52,7 @@ export default function Signup() {
         <div className="glass-strong rounded-4xl p-8 sm:p-10 shadow-elegant border">
           {/* Step indicator */}
           <div className="flex items-center gap-2 mb-8">
-            {[1,2].map((n) => (
+            {[1, 2].map((n) => (
               <div key={n} className="flex-1 flex items-center gap-2">
                 <div className={`h-8 w-8 rounded-full grid place-items-center text-xs font-semibold transition
                   ${step >= n ? "bg-gradient-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
@@ -63,27 +89,51 @@ export default function Signup() {
             </form>
           )}
 
-
           {step === 2 && (
             <form onSubmit={finish} className="space-y-5">
               <div className="flex items-center gap-5">
                 <div className="relative">
                   <div className="h-20 w-20 rounded-3xl bg-aurora grid place-items-center text-white font-display text-2xl shadow-glow">
-                    {form.displayName?.[0]?.toUpperCase() || "A"}
+                    {form.username?.[0]?.toUpperCase() || "A"}
                   </div>
                   <button type="button" className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-background border grid place-items-center shadow-soft hover:scale-105 transition">
                     <Camera className="h-4 w-4" />
                   </button>
                 </div>
                 <div>
-                  <div className="font-display text-lg font-medium">{form.displayName || "Your name"}</div>
+                  <div className="font-display text-lg font-medium">{form.username || "Your name"}</div>
                   <div className="text-sm text-muted-foreground">@{form.username || "username"}</div>
                 </div>
               </div>
               <FieldRow label="Bio" hint="A sentence or two — what are you about?">
                 <Textarea value={form.bio} onChange={set("bio")} rows={3} className="rounded-2xl bg-background/60 resize-none" placeholder="Designer, dreamer, occasional baker." />
               </FieldRow>
-              <SubmitBtn label="Enter VAU" />
+              {error && (
+                <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-500">
+                  {error}
+                </div>
+              )}
+
+              {/* Wrapped buttons in a responsive layout */}
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={prev}
+                  disabled={loading}
+                  className="h-12 px-5 rounded-2xl border bg-background/40 hover:bg-muted text-muted-foreground group"
+                >
+                  <ArrowLeft className="mr-1 h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+                  Back
+                </Button>
+                
+                <div className="flex-1">
+                  <SubmitBtn
+                    label={loading ? "Creating Account ..." : "Enter VAU"}
+                    loading={loading}
+                  />
+                </div>
+              </div>
             </form>
           )}
 
@@ -107,10 +157,24 @@ function FieldRow({ label, hint, children }) {
   );
 }
 
-function SubmitBtn({ label }) {
+function SubmitBtn({ loading, label }) {
   return (
-    <Button type="submit" className="w-full h-12 rounded-2xl bg-gradient-primary text-primary-foreground hover:opacity-90 shadow-soft group">
-      {label} <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+    <Button
+      type="submit"
+      disabled={loading}
+      className="w-full h-12 rounded-2xl bg-gradient-primary text-primary-foreground hover:opacity-90 shadow-soft group"
+    >
+      {loading ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          {label}
+        </>
+      ) : (
+        <>
+          {label}
+          <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+        </>
+      )}
     </Button>
   );
 }

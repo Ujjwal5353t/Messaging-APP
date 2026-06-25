@@ -7,11 +7,21 @@ import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/context/ThemeContext";
 import { currentUser } from "@/lib/mockData";
 import { Moon, Bell, Shield, Camera, LogOut, ChevronRight, Eye, MessageSquare, Volume2 } from "lucide-react";
+// FIXED: Changed 'Navigate' to 'useNavigate' hook
+import { useNavigate } from "react-router-dom"; 
 
 export default function Settings() {
+  const navigate = useNavigate(); // FIXED: Initialized the navigation hook
   const { theme, toggle } = useTheme();
   const [notif, setNotif] = useState({ push: true, sounds: true, preview: false, mentions: true });
   const [privacy, setPrivacy] = useState({ readReceipts: true, lastSeen: true, discoverable: true });
+
+  // FIXED: Moved signout inside the component so it can use 'navigate'
+  const handleSignout = (e) => {
+    e.preventDefault();
+    localStorage.removeItem("Token"); // Clear authentication token
+    navigate("/login"); // Redirect to login
+  };
 
   return (
     <div className="h-screen w-full flex bg-mesh overflow-hidden">
@@ -73,13 +83,14 @@ export default function Settings() {
             <Row title="Blocked accounts" subtitle="Manage who can't reach you." control={<ChevronRight className="h-5 w-5 text-muted-foreground" />} last />
           </Section>
 
-          {/* Danger */}
+          {/* Danger Zone / Sign Out */}
           <section className="glass rounded-4xl p-6 sm:p-8 shadow-soft animate-fade-in flex items-center justify-between gap-4">
             <div>
               <h3 className="font-display text-lg font-semibold">Sign out</h3>
               <p className="text-sm text-muted-foreground">You'll need your password to come back in.</p>
             </div>
-            <button className="h-11 px-5 rounded-2xl bg-destructive/10 text-destructive font-medium hover:bg-destructive/20 transition flex items-center gap-2">
+            {/* FIXED: Linked to 'handleSignout' */}
+            <button onClick={handleSignout} className="h-11 px-5 rounded-2xl bg-destructive/10 text-destructive font-medium hover:bg-destructive/20 transition flex items-center gap-2">
               <LogOut className="h-4 w-4" /> Sign out
             </button>
           </section>
@@ -89,6 +100,7 @@ export default function Settings() {
   );
 }
 
+/* UI Child Components stay safely outside */
 function Field({ label, children }) {
   return (
     <div className="space-y-1.5">

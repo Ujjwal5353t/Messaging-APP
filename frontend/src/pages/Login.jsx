@@ -1,22 +1,105 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import Logo from "@/components/common/Logo";
+import SocialAuthButtons from "@/components/common/SocialAuthButtons";
+import { localLogin } from "@/Authentication/localLogin";
+import { googleAuthLogin } from "@/Authentication/OauthLogin";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Mail, Lock, ArrowRight } from "lucide-react";
+import { twitterAuthLogin } from "../Authentication/OauthLogin";
 
 export default function Login() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({ identifier: "", password: "" });
+  const [errors, setErrors] = useState({});
 
-  const onSubmit = (e) => {
-    e.preventDefault();
+  const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+
+  const onSubmit = async (e) => {
     setLoading(true);
+    setErrors({});
 
-    
+    try {
+      await localLogin({
+        e,
+        form,
+        navigate,
+      });
+    } catch (err) {
+      handleAuthError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
-    setTimeout(() => navigate("/home"), 600);
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    setErrors({});
+
+    try {
+      const res = await googleAuthLogin();
+      if(res?.success && res?.token){
+        localStorage.setItem("Token" , res.token);
+        console.log("Token saved , navigating")
+        setErrors({});
+        navigate("/home");
+        return;
+      } else {
+        setErrors({ global: res?.message || "Authentication failed. Please try again." });
+      }
+    } catch (err) {
+      if (err.code === "auth/popup-closed-by-user") {
+        setErrors({ global: "Sign-in popup was closed before completion." });
+      } else {
+        handleAuthError(err);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTwitterSignIn = async () => {
+    setLoading(true);
+    setErrors({});
+
+    try {
+      const res = await twitterAuthLogin();
+      if(res?.success && res?.token){
+        localStorage.setItem("Token" , res.token);
+        console.log("Token saved , navigating")
+        setErrors({});
+        navigate("/home");
+        return;
+      } else {
+        setErrors({ global: res?.message || "Authentication failed. Please try again." });
+      }
+    } catch (err) {
+      if (err.code === "auth/popup-closed-by-user") {
+        setErrors({ global: "Sign-in popup was closed before completion." });
+      } else {
+        handleAuthError(err);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleAuthError = (err) => {
+    console.log("BACKEND RESPONSE:", err.response?.data);
+    const backendData = err.response?.data;
+
+    if (backendData?.errors && Array.isArray(backendData.errors)) {
+      const errorMap = {};
+      backendData.errors.forEach((errObj) => {
+        errorMap[errObj.field] = errObj.message;
+      });
+      setErrors(errorMap);
+    } else {
+      setErrors({ global: backendData?.message || "Something went wrong" });
+    }
   };
 
   return (
@@ -40,7 +123,7 @@ export default function Login() {
 
         <div className="relative flex items-center gap-3 text-sm text-muted-foreground">
           <div className="flex -space-x-2">
-            {["from-rose-400 to-orange-300","from-violet-500 to-fuchsia-400","from-emerald-400 to-teal-500"].map((c,i)=>(
+            {["from-rose-400 to-orange-300", "from-violet-500 to-fuchsia-400", "from-emerald-400 to-teal-500"].map((c, i) => (
               <div key={i} className={`h-9 w-9 rounded-full bg-gradient-to-br ${c} ring-2 ring-background`} />
             ))}
           </div>
@@ -64,8 +147,17 @@ export default function Login() {
                 <label className="text-sm font-medium">Email or username</label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input className="pl-11 h-12 rounded-2xl bg-background/60" placeholder="you@pulse.app" required />
+                  <Input
+                    value={form.identifier}
+                    onChange={set("identifier")}
+                    className={`pl-11 h-12 rounded-2xl bg-background/60 ${errors.identifier ? 'border-red-500/50' : ''}`}
+                    placeholder="you@pulse.app"
+                    required
+                  />
                 </div>
+                {errors.identifier && (
+                  <p className="text-xs text-red-500 ml-1">{errors.identifier}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -75,9 +167,25 @@ export default function Login() {
                 </div>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input type="password" className="pl-11 h-12 rounded-2xl bg-background/60" placeholder="••••••••" required />
+                  <Input
+                    value={form.password}
+                    onChange={set("password")}
+                    type="password"
+                    className={`pl-11 h-12 rounded-2xl bg-background/60 ${errors.password ? 'border-red-500/50' : ''}`}
+                    placeholder="••••••••"
+                    required
+                  />
                 </div>
+                {errors.password && (
+                  <p className="text-xs text-red-500 ml-1">{errors.password}</p>
+                )}
               </div>
+
+              {errors.global && (
+                <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-500">
+                  {errors.global}
+                </div>
+              )}
 
               <Button
                 type="submit"
@@ -92,11 +200,7 @@ export default function Login() {
               <div className="h-px flex-1 bg-border" /> or continue with <div className="h-px flex-1 bg-border" />
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              {["Google","Apple","X"].map(p => (
-                <button key={p} className="h-11 rounded-2xl border bg-background/40 hover:bg-background transition text-sm font-medium">{p}</button>
-              ))}
-            </div>
+            <SocialAuthButtons loading={loading} onGoogleSignIn={handleGoogleSignIn} onXsignIn = {handleTwitterSignIn} />
 
             <p className="mt-8 text-center text-sm text-muted-foreground">
               New here?{" "}
