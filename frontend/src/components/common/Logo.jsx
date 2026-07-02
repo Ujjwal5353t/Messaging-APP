@@ -16,7 +16,7 @@ export default function Logo({ size = 36 }) {
         </svg>
       </div>
       <span className="font-display text-2xl font-semibold tracking-tight">
-        Pulse<span className="text-accent">.</span>
+        VAU<span className="text-accent">.</span>
       </span>
     </div>
   );

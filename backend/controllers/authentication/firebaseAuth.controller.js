@@ -1,5 +1,5 @@
-import { getUserByProvider, loginOauth, signupOauth } from "../services/auth.service.js";
-import {adminAuth} from "../utils/firebaseAdmin.js"
+import { getUserByProvider, loginOauth, signupOauth } from "../../services/authentication/auth.service.js";
+import {adminAuth} from "../../utils/firebaseAdmin.js"
 
 
 export const OauthLogin = async (req, res) => {

@@ -25,11 +25,10 @@ export default function WelcomeDashboard({ onNewChat }) {
         </div>
 
         <h1 className="font-display text-4xl sm:text-5xl font-medium leading-tight mb-4">
-          A quieter place <br/>to <em className="text-gradient-accent not-italic">say something</em>.
+          Better than <br/> <em className="text-gradient-accent not-italic">WhatsApp</em>.
         </h1>
         <p className="text-muted-foreground text-lg max-w-md leading-relaxed mb-8">
-          Pick a conversation from the left, or start a fresh one. Pulse is end-to-end encrypted —
-          your words are yours.
+          VAU is end-to-end encrypted 
         </p>
 
         <div className="flex flex-wrap gap-3 justify-center mb-12">
@@ -42,16 +41,6 @@ export default function WelcomeDashboard({ onNewChat }) {
           <button className="h-12 px-6 rounded-2xl border bg-card/60 hover:bg-card font-medium transition">
             Invite friends
           </button>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3 w-full max-w-md">
-          {stats.map((s) => (
-            <div key={s.label} className="glass rounded-2xl p-4 hover-lift">
-              <s.icon className="h-5 w-5 text-accent mx-auto mb-2" />
-              <div className="font-display text-2xl font-semibold">{s.value}</div>
-              <div className="text-xs text-muted-foreground">{s.label}</div>
-            </div>
-          ))}
         </div>
 
         <div className="mt-12 flex items-center gap-2 text-xs text-muted-foreground">

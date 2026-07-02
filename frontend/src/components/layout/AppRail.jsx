@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { MessageCircle, Compass, Bell, Settings, LogOut } from "lucide-react";
+import { MessageCircle, Compass, Bell, Settings, LogOut, User } from "lucide-react";
 import Logo from "@/components/common/Logo";
 import Avatar from "@/components/common/Avatar";
 import { currentUser } from "@/lib/mockData";
@@ -9,6 +9,7 @@ const nav = [
   { to: "/home", icon: MessageCircle, label: "Chats" },
   { to: "/discover", icon: Compass, label: "Discover" },
   { to: "/notifications", icon: Bell, label: "Activity" },
+  { to: "/profile", icon: User, label: "Profile" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ];
 

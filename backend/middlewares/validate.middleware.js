@@ -4,14 +4,15 @@ import jwt from "jsonwebtoken"
 export const validate = (Schema) => (req, res, next) => {
     try {
         Schema.parse({
-            body: req.body
+            body: req.body,
+            query : req.query,
+            params : req.params
         });
         next();
     } catch (error) {
         if (error instanceof ZodError) {
             return res.status(400).json({
                 success: false,
-                // ◄ Fixed: Changed error.errors to error.issues
                 errors: error.issues.map((err) => {
                     const fieldName = err.path[0] === "body" ? err.path[1] : err.path[0];
 
@@ -38,7 +39,7 @@ export const validateToken = async (req, res, next) => {
             message: "No token provided"
         })
     }
-    const token = authHeader.split(" ")[1];
+    const token = header.split(" ")[1];
 
     try {
         const decoded = await jwt.verify(

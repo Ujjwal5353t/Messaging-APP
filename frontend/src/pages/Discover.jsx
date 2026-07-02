@@ -1,21 +1,78 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AppRail from "@/components/layout/AppRail";
 import { Input } from "@/components/ui/input";
-import { Search, Phone, AtSign, UserPlus, Check, Sparkles } from "lucide-react";
+// Added Mail icon for the email tab view
+import { Search, Mail, AtSign, UserPlus, Check, Sparkles } from "lucide-react"; 
 import Avatar from "@/components/common/Avatar";
-import { discoverPeople } from "@/lib/mockData";
 import { cn } from "@/lib/utils";
+import axios from "axios"; 
 
 export default function Discover() {
   const [mode, setMode] = useState("username");
-  const [q, setQ] = useState("");
   const [added, setAdded] = useState({});
+  const [searchInput, setSearchInput] = useState('');
+  const [results, setResults] = useState([]); 
+  const [error, setError] = useState('');
 
-  const results = discoverPeople.filter((p) =>
-    mode === "username"
-      ? p.username.toLowerCase().includes(q.toLowerCase()) || p.name.toLowerCase().includes(q.toLowerCase())
-      : true
-  );
+  const handleAddFriend = async (friendId) => {
+    const token = localStorage.getItem("Token");
+
+    try {
+      await axios.post("http://localhost:8080/users/add" ,
+        {
+          friendId
+        } ,
+        {
+          headers : {
+            authorization : `bearer ${token}`
+          }
+        }
+      )
+
+      setAdded((prev) => ({
+        ...prev,
+        [friendId] : true
+      }));
+    } catch (error) {
+      console.error(error);
+      console.log(err.response?.data);
+  console.log(err.response?.status);
+    setError(error.response?.data?.message || 'Something went wrong');
+    }
+  }
+
+
+  useEffect(() => {
+    if (!searchInput.trim()) {
+      setResults([]);
+      setError('');
+      return;
+    }
+
+    const delayDebounceTimer = setTimeout(async () => {
+      const token = localStorage.getItem("Token");
+
+      try {
+        setError('');
+        const response = await axios.get("http://localhost:8080/users/find", {
+          params: { identifier: searchInput },
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        const userData = response.data.data;
+        if (userData) {
+          setResults(Array.isArray(userData) ? userData : [userData]);
+        } else {
+          setResults([]);
+        }
+      } catch (err) {
+        setError(err.response?.data?.message || 'Something went wrong');
+        setResults([]);
+      }
+    }, 500); 
+
+    return () => clearTimeout(delayDebounceTimer);
+  }, [searchInput]); 
 
   return (
     <div className="h-screen w-full flex bg-mesh overflow-hidden">
@@ -29,60 +86,74 @@ export default function Discover() {
             <h1 className="font-display text-4xl sm:text-5xl font-medium tracking-tight mb-3">
               Who would you like to <em className="text-gradient-accent not-italic">find?</em>
             </h1>
-            <p className="text-muted-foreground text-lg">Search by unique username or by phone number — your call.</p>
+            <p className="text-muted-foreground text-lg">Search by unique username or by email — your call.</p>
           </div>
 
           {/* Mode tabs */}
           <div className="mt-8 inline-flex p-1 rounded-2xl bg-card/60 border border-border/60 shadow-soft">
             <TabBtn active={mode === "username"} onClick={() => setMode("username")} icon={<AtSign className="h-4 w-4" />}>Username</TabBtn>
-            <TabBtn active={mode === "phone"} onClick={() => setMode("phone")} icon={<Phone className="h-4 w-4" />}>Phone</TabBtn>
+            {/* ✅ FIXED: Set mode to "email" correctly and swapped to Mail icon */}
+            <TabBtn active={mode === "email"} onClick={() => setMode("email")} icon={<Mail className="h-4 w-4" />}>Email</TabBtn>
           </div>
 
           <div className="mt-4 relative">
             <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={mode === "username" ? "@username or display name" : "+1 (415) 555 0000"}
+              value={searchInput} 
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder={mode === "username" ? "username" : "test@gmail.com"}
               className="pl-14 h-14 rounded-3xl bg-card/80 border-border/60 shadow-soft text-base"
             />
           </div>
 
+          {/* Error Banner */}
+          {error && <p className="text-sm text-red-500 mt-2 ml-2">{error}</p>}
+
           {/* Results */}
           <div className="mt-8 space-y-2.5">
-            {q && results.length === 0 && <EmptyState query={q} />}
-            {(q || mode === "phone") && results.map((p, i) => (
+            {searchInput && results.length === 0 && !error && <EmptyState query={searchInput} />}
+            {(searchInput || mode === "email") && results.map((p, i) => (
               <div
-                key={p.id}
+                key={p.id || p._id || i}
                 className="glass rounded-3xl p-4 sm:p-5 flex items-center gap-4 hover-lift animate-fade-in"
                 style={{ animationDelay: `${i * 50}ms` }}
               >
-                <Avatar initials={p.initials} color={p.avatarColor} size="lg" />
+                <Avatar initials={p.initials || "U"} color={p.avatarColor} size="lg" />
                 <div className="min-w-0 flex-1">
-                  <div className="font-display text-lg font-semibold truncate">{p.name}</div>
-                  <div className="text-sm text-muted-foreground truncate">@{p.username} · {p.bio}</div>
+                  <div className="font-display text-lg font-semibold truncate">{p.username}</div>
+                  <div className="text-sm text-muted-foreground truncate">{p.email} · {p.bio}</div>
                 </div>
                 <button
-                  onClick={() => setAdded({ ...added, [p.id]: true })}
+                  onClick={() => handleAddFriend(p._id)}
                   className={cn(
                     "h-11 px-4 sm:px-5 rounded-2xl text-sm font-medium transition flex items-center gap-2 shrink-0",
-                    added[p.id]
+                    added[p.id || p._id]
                       ? "bg-secondary text-secondary-foreground"
                       : "bg-gradient-primary text-primary-foreground shadow-soft hover:scale-[1.02]"
                   )}
                 >
-                  {added[p.id] ? <><Check className="h-4 w-4" /> Added</> : <><UserPlus className="h-4 w-4" /><span className="hidden sm:inline">Add friend</span></>}
+                  {added[p.id || p._id] ? <><Check className="h-4 w-4" /> Added</> : <><UserPlus className="h-4 w-4" /><span className="hidden sm:inline">Add friend</span></>}
                 </button>
               </div>
             ))}
 
-            {!q && mode === "username" && (
+            {!searchInput && mode === "username" && (
               <div className="text-center py-20 animate-fade-in">
                 <div className="mx-auto h-20 w-20 rounded-[1.5rem] bg-gradient-primary grid place-items-center shadow-glow mb-5 animate-float">
                   <Search className="h-8 w-8 text-primary-foreground" />
                 </div>
                 <h3 className="font-display text-2xl font-medium mb-2">Start typing to find someone</h3>
-                <p className="text-muted-foreground">Try a username like <span className="text-foreground font-medium">@camille.d</span></p>
+                <p className="text-muted-foreground">Try a username like <span className="text-foreground font-medium">camille.d</span></p>
+              </div>
+            )}
+
+            {!searchInput && mode === "email" && (
+              <div className="text-center py-20 animate-fade-in">
+                <div className="mx-auto h-20 w-20 rounded-[1.5rem] bg-gradient-primary grid place-items-center shadow-glow mb-5 animate-float">
+                  <Mail className="h-8 w-8 text-primary-foreground" />
+                </div>
+                <h3 className="font-display text-2xl font-medium mb-2">Search by email address</h3>
+                <p className="text-muted-foreground">Try an address like <span className="text-foreground font-medium">test@gmail.com</span></p>
               </div>
             )}
           </div>
@@ -111,7 +182,7 @@ function EmptyState({ query }) {
         <Search className="h-7 w-7 text-muted-foreground" />
       </div>
       <h3 className="font-display text-xl font-medium mb-1">No one matches "{query}"</h3>
-      <p className="text-sm text-muted-foreground">Double-check the username or try their phone number.</p>
+      <p className="text-sm text-muted-foreground">Double-check the username or email formatting.</p>
     </div>
   );
 }

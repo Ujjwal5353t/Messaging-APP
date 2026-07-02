@@ -151,7 +151,7 @@ export default function Login() {
                     value={form.identifier}
                     onChange={set("identifier")}
                     className={`pl-11 h-12 rounded-2xl bg-background/60 ${errors.identifier ? 'border-red-500/50' : ''}`}
-                    placeholder="you@pulse.app"
+                    placeholder="you@vau.app"
                     required
                   />
                 </div>

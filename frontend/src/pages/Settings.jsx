@@ -1,12 +1,8 @@
 import { useState } from "react";
 import AppRail from "@/components/layout/AppRail";
-import Avatar from "@/components/common/Avatar";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/context/ThemeContext";
-import { currentUser } from "@/lib/mockData";
-import { Moon, Bell, Shield, Camera, LogOut, ChevronRight, Eye, MessageSquare, Volume2 } from "lucide-react";
+import { Moon, Bell, Shield, LogOut, ChevronRight, Eye, MessageSquare, Volume2 } from "lucide-react";
 // FIXED: Changed 'Navigate' to 'useNavigate' hook
 import { useNavigate } from "react-router-dom"; 
 
@@ -32,31 +28,6 @@ export default function Settings() {
             <h1 className="font-display text-4xl sm:text-5xl font-medium tracking-tight">Settings</h1>
             <p className="text-muted-foreground mt-2 text-lg">Make Pulse feel like yours.</p>
           </div>
-
-          {/* Profile card */}
-          <section className="glass rounded-4xl p-6 sm:p-8 shadow-soft animate-fade-in">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-              <div className="relative shrink-0 mx-auto sm:mx-0">
-                <Avatar initials={currentUser.initials} color={currentUser.avatarColor} size="2xl" />
-                <button className="absolute bottom-1 right-1 h-10 w-10 rounded-2xl bg-background border grid place-items-center shadow-soft hover:scale-105 transition">
-                  <Camera className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="flex-1 space-y-4 w-full">
-                <Field label="Display name"><Input defaultValue={currentUser.displayName} className="h-11 rounded-2xl bg-background/60" /></Field>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <Field label="Username">
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">@</span>
-                      <Input defaultValue={currentUser.username} className="pl-8 h-11 rounded-2xl bg-background/60" />
-                    </div>
-                  </Field>
-                  <Field label="Phone"><Input defaultValue={currentUser.phone} className="h-11 rounded-2xl bg-background/60" /></Field>
-                </div>
-                <Field label="Bio"><Textarea defaultValue={currentUser.bio} rows={2} className="rounded-2xl bg-background/60 resize-none" /></Field>
-              </div>
-            </div>
-          </section>
 
           {/* Appearance */}
           <Section title="Appearance" icon={<Moon className="h-5 w-5" />}>
@@ -96,16 +67,6 @@ export default function Settings() {
           </section>
         </div>
       </main>
-    </div>
-  );
-}
-
-/* UI Child Components stay safely outside */
-function Field({ label, children }) {
-  return (
-    <div className="space-y-1.5">
-      <label className="text-xs uppercase tracking-[0.14em] text-muted-foreground font-semibold">{label}</label>
-      {children}
     </div>
   );
 }
