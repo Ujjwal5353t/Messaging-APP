@@ -10,19 +10,12 @@ const api = axios.create({
   },
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("Token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+api.interceptors.request.use((config) => config);
 
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("Token");
       window.location.href = "/login";
     }
     return Promise.reject(error);
@@ -53,13 +46,56 @@ export const authApi = {
     return response.data;
   },
 
-  oauthLogin: async (idToken, provider) => {
-    const response = await api.post("/auth/Oauth-login", { idToken, provider });
+  oauthLogin: async (payloadOrIdToken, provider) => {
+    const payload =
+      typeof payloadOrIdToken === "object" && payloadOrIdToken !== null
+        ? payloadOrIdToken
+        : { idToken: payloadOrIdToken, provider };
+
+    const response = await api.post("/auth/Oauth-login", payload);
     return response.data;
   },
 
-  oauthSignup: async (idToken, publicKey, provider) => {
-    const response = await api.post("/auth/Oauth-signup", { idToken, publicKey, provider });
+  oauthSignup: async (payloadOrIdToken, publicKey, provider) => {
+    const payload =
+      typeof payloadOrIdToken === "object" && payloadOrIdToken !== null
+        ? payloadOrIdToken
+        : { idToken: payloadOrIdToken, publicKey, provider };
+
+    const response = await api.post("/auth/Oauth-signup", payload);
+    return response.data;
+  },
+
+  signout : async () => {
+    const resposne = await api.post("/auth/signOut");
+    return resposne.data ;
+  }
+};
+
+export const userApi =  {
+  contactList : async() => {
+    const response = await api.get("/users/contacts");
+    return response.data;
+  } ,
+  addContact : async(data) => {
+    const response = await api.post("/users/add" , data);
+    return response.data
+  }
+}
+
+export const friendRequestApi = {
+  sendRequest: async (receiverId) => {
+    const response = await api.post("/users/friend-request/send", { receiverId });
+    return response.data;
+  },
+
+  getRequests: async () => {
+    const response = await api.get("/users/friend-request");
+    return response.data;
+  },
+
+  respondRequest: async (requestId, action) => {
+    const response = await api.patch(`/users/friend-request/${requestId}`, { action });
     return response.data;
   },
 };

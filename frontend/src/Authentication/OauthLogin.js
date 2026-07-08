@@ -2,6 +2,7 @@ import axios from "axios";
 import { signInWithPopup } from "firebase/auth";
 import { generateKeys } from "./localSignup";
 import { auth, googleProvider , twitterProvider } from "@/lib/firebase";
+import { authApi } from "../lib/api";
 
 async function savePriKey(priKey) {
     const electronAPI = window.electronAPI;
@@ -27,11 +28,10 @@ export async function googleAuthLogin() {
         const idToken = await result.user.getIdToken();
 
 
-        const response = await axios.post("http://localhost:8080/auth/Oauth-login", { idToken , provider :"google"});
-        const data = response.data;
+        const data = await authApi.oauthLogin( { idToken , provider :"google"});
 
         if (data?.action === "login") {
-            return { success: true, token: data.token };
+            return { success: true };
         }
 
         if (data?.action === "require_encryption_keys") {
@@ -40,15 +40,14 @@ export async function googleAuthLogin() {
             
             console.log("public key sending :", publicKey);
             
-            const signUpRes = await axios.post("http://localhost:8080/auth/Oauth-signup", { 
+            await authApi.oauthSignup( { 
                 idToken, 
                 publicKey,
                 provider : "google" 
             }); 
-            const res = await savePriKey(priKey)
-            const finalToken = signUpRes.data.token;
+            await savePriKey(priKey)
 
-            return { success: true, token: finalToken };
+            return { success: true };
         }
 
         return { success: false, message: "Unknown authentication state" };
@@ -66,16 +65,15 @@ export async function twitterAuthLogin() {
         
         console.log("1. Firebase Popup Successful. Token obtained.");
 
-        const response = await axios.post("http://localhost:8080/auth/Oauth-login", { 
+        const data = await authApi.oauthLogin( { 
             idToken, 
             provider: "twitter" 
         });
         
-        console.log("2. Backend Axios response structure:", response);
-        const data = response.data;
+        console.log("2. Backend response data:", data);
 
         if (data?.action === "login") {
-            return { success: true, token: data.token };
+            return { success: true };
         }
 
         if (data?.action === "require_encryption_keys") {
@@ -84,13 +82,13 @@ export async function twitterAuthLogin() {
 
             console.log("key : " , publicKey);
             
-            const signUpRes = await axios.post("http://localhost:8080/auth/Oauth-signup", { 
+            await authApi.oauthSignup( { 
                 idToken, 
                 publicKey,
                 provider: "twitter"
             }); 
-            const res = await savePriKey(priKey)
-            return { success: true, token: signUpRes.data.token };
+            await savePriKey(priKey)
+            return { success: true };
         }
         
         return { success: false, message: "Unknown authentication state" };

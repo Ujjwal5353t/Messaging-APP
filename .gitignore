@@ -4,7 +4,8 @@ node_modules/
 .pnp.js
 bun.lockb
 package-lock.json
-
+opencode.json
+things-todo.md
 # Testing
 coverage/
 .nyc_output/

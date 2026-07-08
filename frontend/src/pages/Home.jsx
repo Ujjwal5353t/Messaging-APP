@@ -1,19 +1,46 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AppRail from "@/components/layout/AppRail";
 import ConversationList from "@/components/chat/ConversationList";
 import ChatWindow from "@/components/chat/ChatWindow";
 import WelcomeDashboard from "@/components/chat/WelcomeDashboard";
-import { conversations as seed, messagesByConversation } from "@/lib/mockData";
+
 import { useNavigate } from "react-router-dom";
+import { userApi } from "../lib/api";
 
 export default function Home() {
+  const [seed, setSeed] = useState([]);
   const [activeId, setActiveId] = useState(null);
-  const [mobileShowChat, setMobileShowChat] = useState(false);
+  const [mobileShowChat, setMobileShowChat] = useState(false); 
+  const [messages, setMessages] = useState([]);
   const navigate = useNavigate();
 
-  const active = seed.find((c) => c.id === activeId);
+  useEffect(() => {
+    const fetchContacts = async () => {
+      try {
+        const response = await userApi.contactList();
+        console.log("contacts from Backend : ", response);
 
-  const select = (id) => { setActiveId(id); setMobileShowChat(true); };
+
+        if (response && Array.isArray(response.contacts)) {
+          setSeed(response.contacts);
+        } else {
+          setSeed([]);
+        }
+      } catch (error) {
+        console.log("Error retreiving contacts : ", error);
+      }
+    };
+
+    fetchContacts();
+  }, []);
+
+
+  const active = seed.find((c) => (c.id || c._id) === activeId);
+
+  const select = (id) => {
+    setActiveId(id);
+    setMobileShowChat(true);
+  };
 
   return (
     <div className="h-screen w-full flex bg-background overflow-hidden">
@@ -34,7 +61,7 @@ export default function Home() {
         {active ? (
           <ChatWindow
             conversation={active}
-            messages={messagesByConversation[active.id] || []}
+            messages={messages}
             onBack={() => setMobileShowChat(false)}
           />
         ) : (

@@ -41,9 +41,8 @@ export default function Login() {
 
     try {
       const res = await googleAuthLogin();
-      if(res?.success && res?.token){
-        localStorage.setItem("Token" , res.token);
-        console.log("Token saved , navigating")
+      if(res?.success){
+        console.log("Session cookie set, navigating")
         setErrors({});
         navigate("/home");
         return;
@@ -67,9 +66,8 @@ export default function Login() {
 
     try {
       const res = await twitterAuthLogin();
-      if(res?.success && res?.token){
-        localStorage.setItem("Token" , res.token);
-        console.log("Token saved , navigating")
+      if(res?.success){
+        console.log("Session cookie set, navigating")
         setErrors({});
         navigate("/home");
         return;

@@ -11,9 +11,65 @@ export default function ChatWindow({ conversation, messages, onBack }) {
   const [showEmoji, setShowEmoji] = useState(false);
   const [local, setLocal] = useState(messages);
   const endRef = useRef(null);
-
   useEffect(() => { setLocal(messages); }, [messages]);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [local]);
+
+  const displayName = conversation.username || conversation.name || "Unknown";
+  const initials = conversation.initials || (displayName ? displayName.substring(0, 2).toUpperCase() : "??");
+  const avatarColor = conversation.avatarColor;
+
+  // Check if online (either explicit online status, or active within last 5 minutes)
+  const isOnline = conversation.online || (() => {
+    if (!conversation.lastSeen) return false;
+    const diffMs = new Date() - new Date(conversation.lastSeen);
+    return diffMs < 300000; // 5 mins
+  })();
+
+  const getLastSeenText = () => {
+    if (conversation.typing) {
+      return (
+        <span className="text-accent flex items-center gap-1">
+          typing
+          <span className="flex gap-0.5 ml-0.5">
+            <span className="typing-dot" />
+            <span className="typing-dot" />
+            <span className="typing-dot" />
+          </span>
+        </span>
+      );
+    }
+    
+    if (isOnline) {
+      return (
+        <><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Active now</>
+      );
+    }
+
+    const dateString = conversation.lastSeen;
+    if (!dateString) {
+      return "Last seen recently";
+    }
+
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+
+      if (diffMins < 60) {
+        return `Last seen ${diffMins}m ago`;
+      }
+
+      const diffHours = Math.floor(diffMins / 60);
+      if (diffHours < 24) {
+        return `Last seen ${diffHours}h ago`;
+      }
+
+      return `Last seen on ${date.toLocaleDateString()}`;
+    } catch (e) {
+      return "Last seen recently";
+    }
+  };
 
   const send = (e) => {
     e?.preventDefault();
@@ -31,15 +87,11 @@ export default function ChatWindow({ conversation, messages, onBack }) {
         <button onClick={onBack} className="md:hidden h-9 w-9 rounded-xl hover:bg-muted grid place-items-center transition" aria-label="Back">
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <Avatar initials={conversation.initials} color={conversation.avatarColor} online={conversation.online} />
+        <Avatar initials={initials} color={avatarColor} online={isOnline} />
         <div className="min-w-0 flex-1">
-          <div className="font-display text-lg font-semibold truncate">{conversation.name}</div>
+          <div className="font-display text-lg font-semibold truncate">{displayName}</div>
           <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-            {conversation.typing ? (
-              <span className="text-accent flex items-center gap-1">typing<span className="flex gap-0.5 ml-0.5"><span className="typing-dot"/><span className="typing-dot"/><span className="typing-dot"/></span></span>
-            ) : conversation.online ? (
-              <><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Active now</>
-            ) : "Last seen recently"}
+            {getLastSeenText()}
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -60,7 +112,7 @@ export default function ChatWindow({ conversation, messages, onBack }) {
           })}
           {conversation.typing && (
             <div className="flex items-end gap-2 animate-fade-in">
-              <Avatar initials={conversation.initials} color={conversation.avatarColor} size="xs" />
+              <Avatar initials={initials} color={avatarColor} size="xs" />
               <div className="bg-card rounded-3xl rounded-bl-md px-5 py-3 shadow-bubble border border-border/40">
                 <span className="flex gap-1 text-muted-foreground"><span className="typing-dot"/><span className="typing-dot"/><span className="typing-dot"/></span>
               </div>
@@ -127,11 +179,15 @@ function DateDivider({ label }) {
 
 function Bubble({ m, grouped, convo }) {
   const mine = m.from === "me";
+  const convoDisplayName = convo.username || convo.name || "Unknown";
+  const convoInitials = convo.initials || (convoDisplayName ? convoDisplayName.substring(0, 2).toUpperCase() : "??");
+  const convoAvatarColor = convo.avatarColor;
+
   return (
     <div className={cn("flex items-end gap-2 animate-bubble-in", mine ? "justify-end" : "justify-start", grouped ? "mt-0.5" : "mt-3")}>
       {!mine && (
         <div className={cn("w-8", grouped && "invisible")}>
-          {!grouped && <Avatar initials={convo.initials} color={convo.avatarColor} size="xs" />}
+          {!grouped && <Avatar initials={convoInitials} color={convoAvatarColor} size="xs" />}
         </div>
       )}
       <div className={cn("max-w-[78%] sm:max-w-[65%]")}>

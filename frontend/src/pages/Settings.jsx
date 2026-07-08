@@ -5,18 +5,20 @@ import { useTheme } from "@/context/ThemeContext";
 import { Moon, Bell, Shield, LogOut, ChevronRight, Eye, MessageSquare, Volume2 } from "lucide-react";
 // FIXED: Changed 'Navigate' to 'useNavigate' hook
 import { useNavigate } from "react-router-dom"; 
+import { authApi } from "../lib/api";
+
 
 export default function Settings() {
-  const navigate = useNavigate(); // FIXED: Initialized the navigation hook
+  const navigate = useNavigate();
   const { theme, toggle } = useTheme();
   const [notif, setNotif] = useState({ push: true, sounds: true, preview: false, mentions: true });
   const [privacy, setPrivacy] = useState({ readReceipts: true, lastSeen: true, discoverable: true });
 
-  // FIXED: Moved signout inside the component so it can use 'navigate'
-  const handleSignout = (e) => {
+  
+  const handleSignout = async (e) => {
     e.preventDefault();
-    localStorage.removeItem("Token"); // Clear authentication token
-    navigate("/login"); // Redirect to login
+    const res = await authApi.signout();
+    if( res.success === true ) navigate("/login"); 
   };
 
   return (

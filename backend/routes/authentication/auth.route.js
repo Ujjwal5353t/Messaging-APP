@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { validate, validateToken } from "../../middlewares/validate.middleware.js";
 import { loginUserSchema, registerUserSchema, socialAuthSchema } from "../../validators/userAuth.validator.js";
-import { loginUserLocal, registerUserLocal } from "../../controllers/authentication/auth.controller.js";
+import { handleLogout, loginUserLocal, registerUserLocal } from "../../controllers/authentication/auth.controller.js";
 import { OauthLogin , Oauthsignup } from "../../controllers/authentication/firebaseAuth.controller.js";
 
 
@@ -29,6 +29,12 @@ router.post(
     "/Oauth-signup",
     validate(socialAuthSchema),
     Oauthsignup
+)
+
+router.post(
+    "/signOut",
+    validateToken,
+    handleLogout
 )
 
 export default router

@@ -24,10 +24,16 @@ export const OauthLogin = async (req, res) => {
 
         const user = await loginOauth(existing);
 
+        res.cookie("Token" , user.token , {
+            httpOnly : true,
+            secure : process.env.NODE_ENV === 'production',
+            sameSite : 'strict',
+            maxAge : 7 * 24 * 60 * 60 * 1000
+        })
+
         return res.status(200).json({
             success: true,
             action: "login",
-            ...user
         })
     } catch (error) {
         return res.status(401).json({
@@ -44,10 +50,16 @@ export const Oauthsignup = async (req, res) => {
         const { email, uid } = decodedToken;
         try {
             const user = await signupOauth({ email : email || null , provider: provider, providerId: uid, publicKey });
+            res.cookie("Token" , user.token , {
+            httpOnly : true,
+            secure : process.env.NODE_ENV === 'production',
+            sameSite : 'strict',
+            maxAge : 7 * 24 * 60 * 60 * 1000
+        })
+            
             return res.status(201).json({
                 success: true,
                 message: "User signUp successfull",
-                ...user
             })
         } catch (err) {
             return res.status(409).json({

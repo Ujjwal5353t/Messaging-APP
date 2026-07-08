@@ -4,7 +4,11 @@ import crypto from "crypto"
 
 const generateToken = (userId) => {
     return jwt.sign(
-        {userid :  userId},
+        {
+            _id: userId,
+            userid: userId,
+            userId: userId,
+        },
         process.env.JWT_SECRET,
         {expiresIn : "1d"}
     )

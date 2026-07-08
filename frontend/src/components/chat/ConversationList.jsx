@@ -6,7 +6,14 @@ import { useState } from "react";
 
 export default function ConversationList({ conversations, activeId, onSelect, onNewChat }) {
   const [q, setQ] = useState("");
-  const filtered = conversations.filter((c) => c.name.toLowerCase().includes(q.toLowerCase()));
+  
+  
+  const safeConversations = Array.isArray(conversations) ? conversations : [];
+
+  const filtered = safeConversations.filter((c) => 
+    (c.username || "").toLowerCase().includes(q.toLowerCase())
+  );
+  
   const pinned = filtered.filter((c) => c.pinned);
   const rest = filtered.filter((c) => !c.pinned);
 
@@ -39,13 +46,20 @@ export default function ConversationList({ conversations, activeId, onSelect, on
           <>
             <SectionLabel icon={<Pin className="h-3 w-3" />}>Pinned</SectionLabel>
             <div className="space-y-1 mb-4">
-              {pinned.map((c) => <Row key={c.id} c={c} active={c.id === activeId} onClick={() => onSelect(c.id)} />)}
+              {pinned.map((c) => {
+                const id = c._id || c.id; // 🔑 Handle MongoDB ID variant mapping
+                return <Row key={id} c={c} active={id === activeId} onClick={() => onSelect(id)} />;
+              })}
             </div>
           </>
         )}
+        
         <SectionLabel>All conversations</SectionLabel>
         <div className="space-y-1">
-          {rest.map((c) => <Row key={c.id} c={c} active={c.id === activeId} onClick={() => onSelect(c.id)} />)}
+          {rest.map((c) => {
+            const id = c._id || c.id; 
+            return <Row key={id} c={c} active={id === activeId} onClick={() => onSelect(id)} />;
+          })}
         </div>
 
         {filtered.length === 0 && (
@@ -53,7 +67,7 @@ export default function ConversationList({ conversations, activeId, onSelect, on
             <div className="mx-auto h-16 w-16 rounded-3xl bg-muted grid place-items-center mb-4">
               <Search className="h-6 w-6 text-muted-foreground" />
             </div>
-            <p className="text-sm text-muted-foreground">No conversations match "{q}"</p>
+            <p className="text-sm text-muted-foreground">Add someone to start chatting</p>
           </div>
         )}
       </div>
@@ -70,6 +84,8 @@ function SectionLabel({ children, icon }) {
 }
 
 function Row({ c, active, onClick }) {
+  const userInitials = c.initials || (c.username ? c.username.substring(0, 2).toUpperCase() : "??");
+
   return (
     <button
       onClick={onClick}
@@ -81,15 +97,20 @@ function Row({ c, active, onClick }) {
       )}
     >
       {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 rounded-r-full bg-gradient-primary" />}
-      <Avatar initials={c.initials} color={c.avatarColor} online={c.online} />
+      <Avatar initials={userInitials} color={c.avatarColor} online={c.online} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <span className={cn("truncate font-medium", active && "text-foreground")}>{c.name}</span>
-          <span className={cn("text-xs shrink-0", c.unread > 0 ? "text-accent font-semibold" : "text-muted-foreground")}>{c.time}</span>
+          {/* 🔑 Updated from c.name to c.username */}
+          <span className={cn("truncate font-medium", active && "text-foreground")}>
+            {c.username}
+          </span>
+          <span className={cn("text-xs shrink-0", c.unread > 0 ? "text-accent font-semibold" : "text-muted-foreground")}>
+            {c.time || "Now"}
+          </span>
         </div>
         <div className="flex items-center justify-between gap-2 mt-0.5">
           <span className={cn("truncate text-sm", c.unread > 0 ? "text-foreground/80" : "text-muted-foreground")}>
-            {c.typing ? <span className="text-accent italic">typing…</span> : c.lastMessage}
+            {c.typing ? <span className="text-accent italic">typing…</span> : (c.lastMessage || c.bio || "Click to open chat")}
           </span>
           {c.unread > 0 && (
             <span className="shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-gradient-accent text-white text-[11px] font-semibold grid place-items-center shadow-soft">

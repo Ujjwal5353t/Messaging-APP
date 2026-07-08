@@ -1,5 +1,6 @@
 import axios from "axios";
 import { toast } from "sonner";
+import { authApi } from "../lib/api";
 
 export async function generateKeys() {
   const keyPair = await window.crypto.subtle.generateKey(
@@ -25,7 +26,7 @@ export async function localSignup({ e, form, navigate }) {
     const userInput = { ...form, publicKey };
 
     
-    const response = await axios.post("http://localhost:8080/auth/register", userInput);
+    await authApi.register(userInput);
     
     const electronAPI = window.electronAPI;
     if (electronAPI?.savePrivateKey) {
@@ -40,8 +41,7 @@ export async function localSignup({ e, form, navigate }) {
       console.warn("Electron bridge is unavailable; skipping private key storage.");
     }
     toast.success("Account created successfully");
-    
-    localStorage.setItem("Token", response.data.token);
+
     navigate("/home");
     
   } catch (err) {

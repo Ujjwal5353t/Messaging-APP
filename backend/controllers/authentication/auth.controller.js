@@ -31,11 +31,17 @@ export const loginUserLocal = async (req , res) => {
     try{
         const user = await loginLocal(req.body);
 
+        res.cookie("Token" , user.token , {
+            httpOnly : true,
+            secure : process.env.NODE_ENV === 'production',
+            sameSite : 'strict',
+            maxAge : 7 * 24 * 60 * 60 * 1000
+        })
+
         return res.status(200).json({
             success : true,
             action : "login",
             message : "user logged in successfully",
-            token : user.token
         })
     } catch(err){
         return res.status(401).json({
@@ -43,5 +49,19 @@ export const loginUserLocal = async (req , res) => {
             message : err.message 
         })
     }
+}
+
+
+export const handleLogout = async (req , res) => {
+    res.clearCookie("Token" , {
+        httpOnly : true , 
+        secure : process.env.NODE_ENV,
+        sameSite :  "strict"
+    })
+
+    res.status(200).json({
+        success : true ,
+        message : "User logged out successfully"
+    })
 }
 

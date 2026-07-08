@@ -32,21 +32,25 @@ export const validate = (Schema) => (req, res, next) => {
 }
 
 export const validateToken = async (req, res, next) => {
-    const header = req.headers.authorization;
+    const token = req.cookies?.Token;
 
-    if (!header) {
+    if (!token) {
         return res.status(401).json({
             message: "No token provided"
         })
     }
-    const token = header.split(" ")[1];
 
     try {
         const decoded = await jwt.verify(
             token,
             process.env.JWT_SECRET
         )
-        req.user = decoded
+        req.user = {
+            ...decoded,
+            _id: decoded._id || decoded.userId || decoded.userid,
+            userid: decoded.userid || decoded.userId || decoded._id,
+            userId: decoded.userId || decoded._id || decoded.userid,
+        }
 
         return next();
     } catch (error) {

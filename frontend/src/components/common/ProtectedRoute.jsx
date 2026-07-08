@@ -4,25 +4,15 @@ import { profileApi } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 
 export default function ProtectedRoute() {
-  const token = localStorage.getItem("Token");
   const [isValidating, setIsValidating] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     const verifyUser = async () => {
-      if (!token) {
-        setIsAuthenticated(false);
-        setIsValidating(false);
-        return;
-      }
-
       try {
-        
         await profileApi.getProfile();
-        
         setIsAuthenticated(true);
       } catch (error) {
-        
         setIsAuthenticated(false);
       } finally {
         setIsValidating(false);
@@ -30,7 +20,7 @@ export default function ProtectedRoute() {
     };
 
     verifyUser();
-  }, [token]);
+  }, []);
 
   if (isValidating) {
     return (
@@ -44,6 +34,5 @@ export default function ProtectedRoute() {
     return <Navigate to="/login" replace />;
   }
 
-  
   return <Outlet />;
 }
