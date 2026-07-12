@@ -17,7 +17,7 @@ export default function Discover() {
   const [loading, setLoading] = useState({});
 
   const handleSendRequest = async (userId) => {
-    if (requestState[userId]) return; // already sent or already friends
+    if (requestState[userId]) return; 
     setLoading((prev) => ({ ...prev, [userId]: true }));
     try {
       await friendRequestApi.sendRequest(userId);

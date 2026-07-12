@@ -1,5 +1,6 @@
 import { success, parse, ZodError } from "zod";
 import jwt from "jsonwebtoken"
+import { User } from "../models/user.model.js";
 
 export const validate = (Schema) => (req, res, next) => {
     try {
@@ -51,6 +52,11 @@ export const validateToken = async (req, res, next) => {
             userid: decoded.userid || decoded.userId || decoded._id,
             userId: decoded.userId || decoded._id || decoded.userid,
         }
+
+        // Update user's lastSeen timestamp in the background
+        User.findByIdAndUpdate(req.user._id, { lastSeen: new Date() }).catch((err) => {
+            console.error("Failed to update lastSeen:", err);
+        });
 
         return next();
     } catch (error) {

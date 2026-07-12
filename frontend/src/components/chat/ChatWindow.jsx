@@ -3,6 +3,7 @@ import { Phone, Video, Info, Smile, Paperclip, Image as ImageIcon, Mic, Send, Ch
 import Avatar from "@/components/common/Avatar";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { messageApi, profileApi } from "../../lib/api";
 
 const EMOJI = ["✨","🌙","☕","🌸","🔥","💫","🫶","😊","😂","🎧","🌿","💌"];
 
@@ -18,11 +19,10 @@ export default function ChatWindow({ conversation, messages, onBack }) {
   const initials = conversation.initials || (displayName ? displayName.substring(0, 2).toUpperCase() : "??");
   const avatarColor = conversation.avatarColor;
 
-  // Check if online (either explicit online status, or active within last 5 minutes)
   const isOnline = conversation.online || (() => {
     if (!conversation.lastSeen) return false;
     const diffMs = new Date() - new Date(conversation.lastSeen);
-    return diffMs < 300000; // 5 mins
+    return diffMs < 300000; 
   })();
 
   const getLastSeenText = () => {
@@ -71,13 +71,41 @@ export default function ChatWindow({ conversation, messages, onBack }) {
     }
   };
 
-  const send = (e) => {
-    e?.preventDefault();
-    if (!text.trim()) return;
-    const t = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-    setLocal([...local, { id: `m_${Date.now()}`, from: "me", text, time: t, read: false }]);
-    setText("");
-    setShowEmoji(false);
+  const send = async (e) => {
+    try {
+      e?.preventDefault();
+      if (!text.trim()) return;
+
+      const user = await profileApi.getProfile();
+      const userData = user.data || user;
+      const senderId = userData._id;
+      const receiverId = conversation._id;
+      const msg = text;
+      const data = {
+        senderId,
+        receiverId,
+        msg
+      };
+
+      const response = await messageApi.sendMessage(data);
+      console.log("Message sent successfully ", response);
+
+      if (response && response.success) {
+        const newLocalMsg = {
+          id: response.response?._id || Date.now().toString(),
+          from: "me",
+          text: msg,
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          read: false
+        };
+        setLocal((prev) => [...prev, newLocalMsg]);
+      }
+
+      setText("");
+      setShowEmoji(false);
+    } catch (error) {
+      console.log("Error occurred : ", error);
+    }
   };
 
   return (

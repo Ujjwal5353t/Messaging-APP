@@ -14,8 +14,7 @@ const messageSchema = mongoose.Schema({
         required : true
     } ,
     nonce : {
-        type : string ,
-        required : true
+        type : String ,
     },
     status : {
         type : String,

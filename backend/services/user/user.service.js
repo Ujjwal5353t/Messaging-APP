@@ -1,5 +1,7 @@
 import { User } from "../../models/user.model.js";
 import { FriendRequest } from "../../models/friendRequest.model.js";
+import { Conversation } from "../../models/conversation.model.js";
+import { Message } from "../../models/message.model.js";
 
 export const getUser = async (identifier) => {
     try {
@@ -17,14 +19,29 @@ export const getUser = async (identifier) => {
 export const getContacts = async (userId) => {
     try {
         const user = await User.findOne({ _id: userId }).populate("contacts", "username bio avatar lastSeen").lean();
-        return user ? user.contacts : [];
+        if (!user || !user.contacts) return [];
+
+        const contactsWithLastMsg = await Promise.all(
+            user.contacts.map(async (contact) => {
+                const convo = await Conversation.findOne({
+                    participants: { $all: [userId, contact._id], $size: 2 }
+                }).populate("lastmsg").lean();
+
+                return {
+                    ...contact,
+                    lastMsg: convo && convo.lastmsg ? convo.lastmsg.content : null
+                };
+            })
+        );
+
+        return contactsWithLastMsg;
     } catch (error) {
         throw error;
     }
 }
 
 
-// Internal helper — only called after a request is accepted
+
 export const addContact = async (userId, friendId) => {
     try {
         const friend = await User.findById(friendId);
@@ -52,7 +69,6 @@ export const addContact = async (userId, friendId) => {
 };
 
 
-// ─── Friend Request Services ──────────────────────────────────────────────────
 
 export const sendFriendRequest = async (senderId, receiverId) => {
     if (senderId.toString() === receiverId.toString()) {
@@ -64,13 +80,13 @@ export const sendFriendRequest = async (senderId, receiverId) => {
         throw new Error("User not found.");
     }
 
-    // Check if already contacts
+    
     const sender = await User.findById(senderId);
     if (sender.contacts.map(String).includes(receiverId.toString())) {
         throw new Error("You are already friends with this user.");
     }
 
-    // Check for an existing pending request in either direction
+    
     const existing = await FriendRequest.findOne({
         $or: [
             { sender: senderId, receiver: receiverId },

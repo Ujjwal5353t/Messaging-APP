@@ -47,7 +47,7 @@ export default function ConversationList({ conversations, activeId, onSelect, on
             <SectionLabel icon={<Pin className="h-3 w-3" />}>Pinned</SectionLabel>
             <div className="space-y-1 mb-4">
               {pinned.map((c) => {
-                const id = c._id || c.id; // 🔑 Handle MongoDB ID variant mapping
+                const id = c._id || c.id; 
                 return <Row key={id} c={c} active={id === activeId} onClick={() => onSelect(id)} />;
               })}
             </div>
@@ -86,6 +86,12 @@ function SectionLabel({ children, icon }) {
 function Row({ c, active, onClick }) {
   const userInitials = c.initials || (c.username ? c.username.substring(0, 2).toUpperCase() : "??");
 
+  const isOnline = c.online || (() => {
+    if (!c.lastSeen) return false;
+    const diffMs = new Date() - new Date(c.lastSeen);
+    return diffMs < 300000; // 5 minutes
+  })();
+
   return (
     <button
       onClick={onClick}
@@ -97,7 +103,7 @@ function Row({ c, active, onClick }) {
       )}
     >
       {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 rounded-r-full bg-gradient-primary" />}
-      <Avatar initials={userInitials} color={c.avatarColor} online={c.online} />
+      <Avatar initials={userInitials} color={c.avatarColor} online={isOnline} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           {/* 🔑 Updated from c.name to c.username */}
@@ -110,7 +116,7 @@ function Row({ c, active, onClick }) {
         </div>
         <div className="flex items-center justify-between gap-2 mt-0.5">
           <span className={cn("truncate text-sm", c.unread > 0 ? "text-foreground/80" : "text-muted-foreground")}>
-            {c.typing ? <span className="text-accent italic">typing…</span> : (c.lastMessage || c.bio || "Click to open chat")}
+            {c.typing ? <span className="text-accent italic">typing…</span> : (c.lastMsg || "Click to open chat")}
           </span>
           {c.unread > 0 && (
             <span className="shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-gradient-accent text-white text-[11px] font-semibold grid place-items-center shadow-soft">

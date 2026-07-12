@@ -5,7 +5,7 @@ import ChatWindow from "@/components/chat/ChatWindow";
 import WelcomeDashboard from "@/components/chat/WelcomeDashboard";
 
 import { useNavigate } from "react-router-dom";
-import { userApi } from "../lib/api";
+import { userApi, profileApi, messageApi } from "../lib/api";
 
 export default function Home() {
   const [seed, setSeed] = useState([]);
@@ -18,7 +18,6 @@ export default function Home() {
     const fetchContacts = async () => {
       try {
         const response = await userApi.contactList();
-        console.log("contacts from Backend : ", response);
 
 
         if (response && Array.isArray(response.contacts)) {
@@ -33,6 +32,52 @@ export default function Home() {
 
     fetchContacts();
   }, []);
+
+  useEffect(() => {
+    if (!activeId) {
+      setMessages([]);
+      return;
+    }
+
+    const fetchData = async () => {
+      try {
+        const user = await profileApi.getProfile();
+        const currentUserId = user.data?._id || user._id;
+
+        const messageResponse = await messageApi.getMessage(currentUserId, activeId);
+        if (messageResponse && Array.isArray(messageResponse.response)) {
+          const mapped = messageResponse.response.map((m) => ({
+            id: m._id,
+            from: m.sender === currentUserId ? "me" : "them",
+            text: m.content,
+            time: m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
+            read: m.status === "Seen"
+          }));
+
+          setMessages((prev) => {
+            if (JSON.stringify(prev) !== JSON.stringify(mapped)) {
+              return mapped;
+            }
+            return prev;
+          });
+        }
+
+    
+        const contactsResponse = await userApi.contactList();
+        if (contactsResponse && Array.isArray(contactsResponse.contacts)) {
+          setSeed(contactsResponse.contacts);
+        }
+      } catch (error) {
+        console.log("Error fetching data:", error);
+      }
+    };
+
+    fetchData();
+
+    const interval = setInterval(fetchData, 3000); 
+
+    return () => clearInterval(interval);
+  }, [activeId]);
 
 
   const active = seed.find((c) => (c.id || c._id) === activeId);

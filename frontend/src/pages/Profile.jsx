@@ -78,7 +78,6 @@ export default function Profile() {
   try {
     setSaving(true);
     
-    // 1. Manually build the payload, only pulling fields if they have value
     const completelyCleanedPayload = {};
     
     if (formData.username && formData.username.trim() !== "") {
@@ -91,10 +90,8 @@ export default function Profile() {
       completelyCleanedPayload.avatar = formData.avatar.trim();
     }
 
-    // 2. Log this in your browser console to verify it worked
-    console.log("🔥 ABSOLUTE CLEAN PAYLOAD:", completelyCleanedPayload);
+    console.log(" ABSOLUTE CLEAN PAYLOAD:", completelyCleanedPayload);
 
-    // 3. Dispatch the filtered payload 
     const response = await profileApi.updateProfile(completelyCleanedPayload);
     
     if (response.success) {
