@@ -26,11 +26,12 @@ export async function localSignup({ e, form, navigate }) {
     const userInput = { ...form, publicKey };
 
     
-    await authApi.register(userInput);
+    const registerRes = await authApi.register(userInput);
+    const userId = registerRes.userId || registerRes.data?.userId;
     
     const electronAPI = window.electronAPI;
-    if (electronAPI?.savePrivateKey) {
-      const electronResponse = await electronAPI.savePrivateKey(JSON.stringify(priKey));
+    if (electronAPI?.savePrivateKey && userId) {
+      const electronResponse = await electronAPI.savePrivateKey(JSON.stringify(priKey), userId);
 
       if (!electronResponse.success) {
         throw new Error(electronResponse.error || "Failed to secure private key hardware vault.");

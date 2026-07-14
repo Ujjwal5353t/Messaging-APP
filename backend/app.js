@@ -9,12 +9,11 @@ import { Conversation } from "./models/conversation.model.js";
 const app = express();
 const server = createServer(app);
 
-const allowedOrigins = ["http://localhost:3000", "null", null];
+const allowedOrigins = ["*", "null", null, "file://"];
 
 app.use(cors({
     origin : (origin, callback) => {
-        // Allow requests with no origin (e.g. Electron, curl) or from allowed list
-        if (!origin || allowedOrigins.includes(origin)) {
+        if (!origin || allowedOrigins.includes(origin) || origin.startsWith("file://") || origin.startsWith("http://localhost:") || origin === "http://localhost") {
             callback(null, true);
         } else {
             callback(new Error(`CORS blocked for origin: ${origin}`));
@@ -41,8 +40,7 @@ app.use("/message" , messageRouter)
 const io = new Server(server , {
     cors : {
         origin: (origin, callback) => {
-            // Allow Electron (null origin) and localhost
-            if (!origin || allowedOrigins.includes(origin)) {
+            if (!origin || allowedOrigins.includes(origin) || origin.startsWith("file://") || origin.startsWith("http://localhost:") || origin === "http://localhost") {
                 callback(null, true);
             } else {
                 callback(new Error(`Socket.IO CORS blocked for origin: ${origin}`));
@@ -66,7 +64,8 @@ io.on("connection" , (socket) => {
     
     socket.on("send_message", async (data) => {
         try {
-            const { senderId, receiverId, msg, conversationId } = data;
+            console.log("[Backend Socket] Received send_message payload:", data);
+            const { senderId, receiverId, msg, nonce, conversationId } = data;
 
             if (!senderId || !receiverId || !msg) return;
 
@@ -93,6 +92,7 @@ io.on("connection" , (socket) => {
                 conversation: convo._id,
                 sender: senderId,
                 content: msg,
+                nonce: nonce || undefined,
                 status: "Sent"
             });
 
@@ -100,7 +100,6 @@ io.on("connection" , (socket) => {
             convo.lastmsg = newMessage._id;
             convo.lastmsgAt = newMessage.createdAt;
 
-            // Increment unread count for the receiver
             const currentUnread = convo.unreadCount?.get(receiverId) || 0;
             if (!convo.unreadCount) convo.unreadCount = new Map();
             convo.unreadCount.set(receiverId, currentUnread + 1);
@@ -112,6 +111,7 @@ io.on("connection" , (socket) => {
                 sender: senderId,
                 receiver: receiverId,
                 content: msg,
+                nonce: nonce || undefined,
                 conversationId: convo._id,
                 status: newMessage.status,
                 createdAt: newMessage.createdAt
@@ -157,7 +157,6 @@ io.on("connection" , (socket) => {
         try {
             const message = await Message.findByIdAndUpdate(messageId, { status: "Seen" }, { new: true });
 
-            // Reset unread count for this user in the conversation
             if (message && message.conversation) {
                 await Conversation.findByIdAndUpdate(message.conversation, {
                     [`unreadCount.${userId}`]: 0

@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Phone, Video, Info, Smile, Paperclip, Image as ImageIcon, Mic, Send, Check, CheckCheck, ArrowLeft } from "lucide-react";
+import { Phone, Video, Info, Smile, Paperclip, Image as ImageIcon, Mic, Send, Check, CheckCheck, ArrowLeft, Lock } from "lucide-react";
 import Avatar from "@/components/common/Avatar";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { profileApi } from "../../lib/api";
 import { useSocket } from "@/context/SocketContext";
+import { encryptMessage } from "@/lib/crypto";
 
 const EMOJI = ["✨","🌙","☕","🌸","🔥","💫","🫶","😊","😂","🎧","🌿","💌"];
 const TYPING_DEBOUNCE_MS = 1500;
 
-export default function ChatWindow({ conversation, messages, currentUserId, onBack, onMessageAdded }) {
+export default function ChatWindow({ conversation, messages, currentUserId, onBack, onMessageAdded, getSharedKey, pendingPlaintextRef }) {
   const [text, setText] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
   const [local, setLocal] = useState(messages);
@@ -165,7 +166,6 @@ export default function ChatWindow({ conversation, messages, currentUserId, onBa
       setShowEmoji(false);
 
       if (socket && socket.connected) {
-        // Optimistic UI
         const pendingId = "__pending_" + Date.now();
         const optimistic = {
           id: pendingId,
@@ -178,13 +178,52 @@ export default function ChatWindow({ conversation, messages, currentUserId, onBa
         setLocal((prev) => [...prev, optimistic]);
         if (onMessageAdded) onMessageAdded(optimistic);
 
-        socket.emit("send_message", {
-          senderId,
-          receiverId,
-          msg: trimmed,
-        });
+        // Try E2EE encryption
+        const contactPubKey = conversation.publicKey;
+        console.log("[E2EE DEBUG] conversation object:", conversation);
+        console.log("[E2EE DEBUG] getSharedKey present:", !!getSharedKey, "contactPubKey:", contactPubKey);
+        if (getSharedKey && contactPubKey) {
+          try {
+            const sharedKey = await getSharedKey(receiverId, contactPubKey);
+            console.log("[E2EE DEBUG] derived sharedKey:", sharedKey);
+            if (sharedKey) {
+              const { ciphertext, nonce } = await encryptMessage(trimmed, sharedKey);
+              console.log("[E2EE DEBUG] Encrypted success. Ciphertext:", ciphertext, "Nonce:", nonce);
+              // Store mapping so message_sent handler can match ciphertext back to plaintext
+              if (pendingPlaintextRef) {
+                pendingPlaintextRef.current.set(ciphertext, trimmed);
+              }
+              socket.emit("send_message", {
+                senderId,
+                receiverId,
+                msg: ciphertext,
+                nonce,
+              });
+            } else {
+              console.log("[E2EE DEBUG] sharedKey is null, sending plaintext");
+              socket.emit("send_message", {
+                senderId,
+                receiverId,
+                msg: trimmed,
+              });
+            }
+          } catch (err) {
+            console.error("[E2EE] Encryption failed, sending plaintext:", err);
+            socket.emit("send_message", {
+              senderId,
+              receiverId,
+              msg: trimmed,
+            });
+          }
+        } else {
+          console.log("[E2EE DEBUG] getSharedKey or contactPubKey missing, sending plaintext");
+          socket.emit("send_message", {
+            senderId,
+            receiverId,
+            msg: trimmed,
+          });
+        }
       } else {
-        // HTTP fallback
         console.warn("[ChatWindow] Socket not connected — falling back to HTTP");
         const { messageApi } = await import("../../lib/api");
         const response = await messageApi.sendMessage({ senderId, receiverId, msg: trimmed });
@@ -215,7 +254,18 @@ export default function ChatWindow({ conversation, messages, currentUserId, onBa
         </button>
         <Avatar initials={initials} color={avatarColor} online={isOnline} />
         <div className="min-w-0 flex-1">
-          <div className="font-display text-lg font-semibold truncate">{displayName}</div>
+          <div className="font-display text-lg font-semibold truncate flex items-center gap-1.5">
+            {displayName}
+            {conversation.publicKey && getSharedKey ? (
+              <span className="inline-flex items-center gap-0.5 text-xs font-normal text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full select-none" title="End-to-End Encrypted">
+                <Lock className="h-3 w-3" /> E2EE
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-0.5 text-xs font-normal text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full select-none" title="Public key missing or not running in Electron">
+                Plaintext
+              </span>
+            )}
+          </div>
           <div className="text-xs text-muted-foreground flex items-center gap-1.5">
             {getLastSeenText()}
           </div>

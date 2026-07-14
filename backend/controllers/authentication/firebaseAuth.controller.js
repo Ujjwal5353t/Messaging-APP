@@ -1,5 +1,6 @@
 import { getUserByProvider, loginOauth, signupOauth } from "../../services/authentication/auth.service.js";
 import {adminAuth} from "../../utils/firebaseAdmin.js"
+import { getCookieOptions } from "../../utils/cookie.js";
 
 
 export const OauthLogin = async (req, res) => {
@@ -24,12 +25,7 @@ export const OauthLogin = async (req, res) => {
 
         const user = await loginOauth(existing);
 
-        res.cookie("Token" , user.token , {
-            httpOnly : true,
-            secure : process.env.NODE_ENV === 'production',
-            sameSite : 'strict',
-            maxAge : 7 * 24 * 60 * 60 * 1000
-        })
+        res.cookie("Token" , user.token , getCookieOptions(req))
 
         return res.status(200).json({
             success: true,
@@ -50,16 +46,12 @@ export const Oauthsignup = async (req, res) => {
         const { email, uid } = decodedToken;
         try {
             const user = await signupOauth({ email : email || null , provider: provider, providerId: uid, publicKey });
-            res.cookie("Token" , user.token , {
-            httpOnly : true,
-            secure : process.env.NODE_ENV === 'production',
-            sameSite : 'strict',
-            maxAge : 7 * 24 * 60 * 60 * 1000
-        })
+            res.cookie("Token" , user.token , getCookieOptions(req))
             
             return res.status(201).json({
                 success: true,
                 message: "User signUp successfull",
+                userId: user._id,
             })
         } catch (err) {
             return res.status(409).json({

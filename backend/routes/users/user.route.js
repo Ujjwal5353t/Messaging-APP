@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { contactList, createContact, findUser } from "../../controllers/user/user.controller.js";
+import { contactList, createContact, findUser, getPublicKey } from "../../controllers/user/user.controller.js";
 import { getUserProfile, updateUserProfile } from "../../controllers/user/profile.controller.js";
 import { sendRequest, getRequests, respondRequest } from "../../controllers/user/friendRequest.controller.js";
 import { validate, validateToken } from "../../middlewares/validate.middleware.js";
@@ -40,9 +40,27 @@ router.post(
     createContact
 )
 
-// ─── Friend Request Routes ────────────────────────────────────────────────────
-router.post("/friend-request/send", validateToken, sendRequest);
-router.get("/friend-request", validateToken, getRequests);
-router.patch("/friend-request/:requestId", validateToken, respondRequest);
 
+router.post(
+    "/friend-request/send", 
+    validateToken, 
+    sendRequest
+);
+router.get(
+    "/friend-request", 
+    validateToken, 
+    getRequests
+);
+router.patch(
+    "/friend-request/:requestId", 
+    validateToken, 
+    respondRequest
+);
+
+
+router.get(
+    "/getPublicKey",
+    validateToken,
+    getPublicKey
+)
 export default router;

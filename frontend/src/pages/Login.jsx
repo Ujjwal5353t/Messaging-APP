@@ -86,6 +86,7 @@ export default function Login() {
   }
 
   const handleAuthError = (err) => {
+    console.error("Full auth error object:", err);
     console.log("BACKEND RESPONSE:", err.response?.data);
     const backendData = err.response?.data;
 
@@ -114,7 +115,7 @@ export default function Login() {
             Conversations that <em className="text-gradient-accent not-italic">feel like</em> the room you're in.
           </h1>
           <p className="text-muted-foreground text-lg leading-relaxed">
-            Pulse is a calmer, warmer place to talk. Built for people who care about
+            VAU is a calmer, warmer place to talk. Built for people who care about
             craft, quiet, and the little details.
           </p>
         </div>

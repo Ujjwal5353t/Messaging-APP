@@ -1,22 +1,19 @@
 import { success } from "zod";
 import {  loginLocal, singupLocal } from "../../services/authentication/auth.service.js";
+import { getCookieOptions, getClearCookieOptions } from "../../utils/cookie.js";
 
 export const registerUserLocal = async function(req, res) {
     try{
         const user = await singupLocal(req.body);
 
-        res.cookie("Token" , user.token , {
-            httpOnly : true,
-            secure : process.env.NODE_ENV === 'production',
-            sameSite : 'strict',
-            maxAge : 7 * 24 * 60 * 60 * 1000
-        })
+        res.cookie("Token" , user.token , getCookieOptions(req))
 
         return res.status(201).json({
             success : true,
             action : "User_created",
             message : "User registered successfully",
             email : user.email,
+            userId : user._id,
         })
        
     } catch (error){
@@ -31,12 +28,7 @@ export const loginUserLocal = async (req , res) => {
     try{
         const user = await loginLocal(req.body);
 
-        res.cookie("Token" , user.token , {
-            httpOnly : true,
-            secure : process.env.NODE_ENV === 'production',
-            sameSite : 'strict',
-            maxAge : 7 * 24 * 60 * 60 * 1000
-        })
+        res.cookie("Token" , user.token , getCookieOptions(req))
 
         return res.status(200).json({
             success : true,
@@ -53,11 +45,7 @@ export const loginUserLocal = async (req , res) => {
 
 
 export const handleLogout = async (req , res) => {
-    res.clearCookie("Token" , {
-        httpOnly : true , 
-        secure : process.env.NODE_ENV,
-        sameSite :  "strict"
-    })
+    res.clearCookie("Token" , getClearCookieOptions(req))
 
     res.status(200).json({
         success : true ,

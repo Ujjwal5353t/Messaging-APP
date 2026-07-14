@@ -33,7 +33,7 @@ export const getRequests = async (req, res) => {
 export const respondRequest = async (req, res) => {
     try {
         const { requestId } = req.params;
-        const { action } = req.body; // "accept" | "reject"
+        const { action } = req.body; 
 
         if (!action) {
             return res.status(400).json({ success: false, message: "action is required ('accept' or 'reject')." });

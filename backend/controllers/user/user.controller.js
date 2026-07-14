@@ -1,5 +1,5 @@
 import { success } from "zod";
-import { addContact, getContacts, getUser } from "../../services/user/user.service.js";
+import { addContact, getContacts, getUser, pubKey } from "../../services/user/user.service.js";
 
 export const findUser = async (req, res) => {
     try {
@@ -66,6 +66,34 @@ export const createContact = async (req, res) => {
         return res.status(400).json({
             success: false,
             message: error.message
+        })
+    }
+}
+
+
+export const getPublicKey = async (req , res) => {
+    try {
+        const {receiverId} = req.query;
+
+        const key = await pubKey(receiverId);
+
+        if(!key){
+            return res.status(404).json({
+                success : false ,
+                message: "No public key found"
+            })
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Public key found",
+            key
+        });
+        
+    } catch (error) {
+        return res.status(400).json({
+            success : false ,
+            message : error.message
         })
     }
 }

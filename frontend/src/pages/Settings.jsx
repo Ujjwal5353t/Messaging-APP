@@ -33,7 +33,6 @@ export default function Settings() {
         <div className="max-w-3xl mx-auto px-6 py-10 sm:py-14 space-y-8">
           <div className="animate-slide-up">
             <h1 className="font-display text-4xl sm:text-5xl font-medium tracking-tight">Settings</h1>
-            <p className="text-muted-foreground mt-2 text-lg">Make Pulse feel like yours.</p>
           </div>
 
           {/* Appearance */}

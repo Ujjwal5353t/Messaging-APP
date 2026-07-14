@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld("electronAPI" , {
-    savePrivateKey : (keyString) => ipcRenderer.invoke("save-key" , keyString),
+    savePrivateKey : (keyString, userId) => ipcRenderer.invoke("save-key" , keyString, userId),
 
-    getPrivateKey : () => ipcRenderer.invoke("get-key")
+    getPrivateKey : (userId) => ipcRenderer.invoke("get-key", userId)
 });

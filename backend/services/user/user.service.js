@@ -18,7 +18,7 @@ export const getUser = async (identifier) => {
 
 export const getContacts = async (userId) => {
     try {
-        const user = await User.findOne({ _id: userId }).populate("contacts", "username bio avatar lastSeen").lean();
+        const user = await User.findOne({ _id: userId }).populate("contacts", "username bio avatar lastSeen publicKey").lean();
         if (!user || !user.contacts) return [];
 
         const contactsWithLastMsg = await Promise.all(
@@ -32,7 +32,10 @@ export const getContacts = async (userId) => {
 
                 return {
                     ...contact,
-                    lastMsg: convo && convo.lastmsg ? convo.lastmsg.content : null,
+                    lastMsg: convo && convo.lastmsg ? {
+                        content: convo.lastmsg.content,
+                        nonce: convo.lastmsg.nonce
+                    } : null,
                     unread
                 };
             })
@@ -146,3 +149,17 @@ export const respondToFriendRequest = async (requestId, userId, action) => {
 
     return request;
 };
+
+
+export const pubKey = async (receiverId) => {
+    try {
+        const user = await User.findById(receiverId);
+        if(!user) throw new Error("No user found");
+
+        const key = user.publicKey
+
+        return key;
+    } catch (error) {
+        throw error;
+    }
+}

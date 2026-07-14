@@ -7,6 +7,7 @@ import WelcomeDashboard from "@/components/chat/WelcomeDashboard";
 import { useNavigate } from "react-router-dom";
 import { userApi, messageApi } from "../lib/api";
 import { useSocket } from "@/context/SocketContext";
+import { getMyPrivateKey, deriveSharedKey, decryptMessage } from "@/lib/crypto";
 
 export default function Home() {
   const [seed, setSeed] = useState([]);
@@ -18,10 +19,85 @@ export default function Home() {
   const activeIdRef = useRef(activeId);
   const currentUserIdRef = useRef(currentUserId);
 
+  // E2EE state
+  const privateKeyRef = useRef(null);      // Our X25519 private key JWK
+  const sharedKeysRef = useRef(new Map());  // contactId → AES-GCM CryptoKey
+  const pendingPlaintextRef = useRef(new Map()); // ciphertext → plaintext (for optimistic matching)
+
   // Keep refs in sync for use inside socket callbacks
   useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
   useEffect(() => { currentUserIdRef.current = currentUserId; }, [currentUserId]);
 
+  // Load private key from Electron's safeStorage when currentUserId is loaded
+  useEffect(() => {
+    if (!currentUserId) return;
+    getMyPrivateKey(currentUserId).then((key) => {
+      privateKeyRef.current = key;
+      if (key) console.log("[E2EE] Private key loaded from safeStorage for", currentUserId);
+    });
+  }, [currentUserId]);
+
+
+  /**
+   * Get or derive the shared AES-GCM key for a given contact.
+   * Caches in sharedKeysRef so ECDH is only done once per contact per session.
+   */
+  const getSharedKey = useCallback(async (contactId, contactPublicKey) => {
+    if (!privateKeyRef.current || !contactPublicKey) return null;
+
+    if (sharedKeysRef.current.has(contactId)) {
+      return sharedKeysRef.current.get(contactId);
+    }
+
+    try {
+      const key = await deriveSharedKey(privateKeyRef.current, contactPublicKey);
+      sharedKeysRef.current.set(contactId, key);
+      return key;
+    } catch (err) {
+      console.error("[E2EE] Failed to derive shared key for", contactId, err);
+      return null;
+    }
+  }, []);
+
+ 
+  const tryDecrypt = useCallback(async (ciphertext, nonce, contactId, contactPublicKey) => {
+    if (!nonce || !privateKeyRef.current) return ciphertext;
+    try {
+      const sharedKey = await getSharedKey(contactId, contactPublicKey);
+      if (!sharedKey) return ciphertext;
+      return await decryptMessage(ciphertext, nonce, sharedKey);
+    } catch (err) {
+      console.error("[E2EE] Decryption failed:", err);
+      return "[Encrypted message]"; 
+    }
+  }, [getSharedKey]);
+
+  // Helper: find a contact's publicKey from seed by contactId
+  const getContactPubKey = useCallback((contactId) => {
+    const seedRef = seed;
+    const contact = seedRef.find((c) => (c._id || c.id) === contactId);
+    return contact?.publicKey || null;
+  }, [seed]);
+
+  const decryptContactsList = useCallback(async (contacts) => {
+    if (!Array.isArray(contacts)) return [];
+    return await Promise.all(
+      contacts.map(async (c) => {
+        let lastMsgText = null;
+        if (c.lastMsg) {
+          if (typeof c.lastMsg === "object") {
+            lastMsgText = await tryDecrypt(c.lastMsg.content, c.lastMsg.nonce, c._id || c.id, c.publicKey);
+          } else {
+            lastMsgText = c.lastMsg;
+          }
+        }
+        return {
+          ...c,
+          lastMsg: lastMsgText
+        };
+      })
+    );
+  }, [tryDecrypt]);
 
   // Initial contact fetch
   useEffect(() => {
@@ -29,7 +105,8 @@ export default function Home() {
       try {
         const response = await userApi.contactList();
         if (response && Array.isArray(response.contacts)) {
-          setSeed(response.contacts);
+          const decrypted = await decryptContactsList(response.contacts);
+          setSeed(decrypted);
         } else {
           setSeed([]);
         }
@@ -38,7 +115,7 @@ export default function Home() {
       }
     };
     fetchContacts();
-  }, []);
+  }, [decryptContactsList]);
 
   // Sync online status from socket into seed
   useEffect(() => {
@@ -62,16 +139,28 @@ export default function Home() {
       try {
         const messageResponse = await messageApi.getMessage(currentUserId, activeId);
         if (messageResponse && Array.isArray(messageResponse.response)) {
-          const mapped = messageResponse.response.map((m) => ({
-            id: m._id,
-            from: m.sender === currentUserId ? "me" : "them",
-            text: m.content,
-            time: m.createdAt
-              ? new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-              : "",
-            read: m.status === "Seen",
-            status: m.status,
-          }));
+          // Determine the contact's public key for decryption
+          const contact = seed.find((c) => (c._id || c.id) === activeId);
+          const contactPubKey = contact?.publicKey || null;
+
+          const mapped = await Promise.all(
+            messageResponse.response.map(async (m) => {
+              // Decrypt if nonce is present (E2EE message)
+              // For "me" messages: use the contact's pubKey (same shared secret)
+              // For "them" messages: use the contact's pubKey
+              const text = await tryDecrypt(m.content, m.nonce, activeId, contactPubKey);
+              return {
+                id: m._id,
+                from: m.sender === currentUserId ? "me" : "them",
+                text,
+                time: m.createdAt
+                  ? new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                  : "",
+                read: m.status === "Seen",
+                status: m.status,
+              };
+            })
+          );
           setMessages(mapped);
         }
       } catch (error) {
@@ -80,16 +169,16 @@ export default function Home() {
     };
 
     fetchMessages();
-  }, [activeId, currentUserId]);
+  }, [activeId, currentUserId, seed, tryDecrypt]);
 
 
-  // Refresh contact list when a new message comes in (to update lastMsg preview)
   const refreshContacts = useCallback(async () => {
     try {
       const response = await userApi.contactList();
       if (response && Array.isArray(response.contacts)) {
+        const decrypted = await decryptContactsList(response.contacts);
         setSeed((prev) => {
-          const merged = response.contacts.map((c) => {
+          const merged = decrypted.map((c) => {
             const existing = prev.find((p) => (p._id || p.id) === (c._id || c.id));
             // Use whichever unread count is higher: local (live) or backend (persisted)
             const localUnread = existing?.unread || 0;
@@ -105,19 +194,23 @@ export default function Home() {
         });
       }
     } catch {}
-  }, []);
+  }, [decryptContactsList]);
 
   // Socket event handlers
   useEffect(() => {
     if (!socket) return;
 
-    // Incoming message from the other person
-    const handleReceiveMessage = (payload) => {
-      const { sender, content, createdAt, _id } = payload;
+    const handleReceiveMessage = async (payload) => {
+      const { sender, content, nonce, createdAt, _id } = payload;
+
+      // Decrypt if E2EE (nonce present)
+      const contactPubKey = getContactPubKey(sender);
+      const text = await tryDecrypt(content, nonce, sender, contactPubKey);
+
       const newMsg = {
         id: _id,
         from: "them",
-        text: content,
+        text,
         time: createdAt
           ? new Date(createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
           : new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -125,18 +218,14 @@ export default function Home() {
         status: payload.status,
       };
 
-      // If the chat with this sender is currently open, append the message
       if (activeIdRef.current === sender) {
         setMessages((prev) => [...prev, newMsg]);
-
-        // Mark as seen since window is open
         socket.emit("message_seen", { messageId: _id, senderId: sender });
       } else {
-        // Otherwise increment unread count in the sidebar
         setSeed((prev) =>
           prev.map((c) =>
             (c._id || c.id) === sender
-              ? { ...c, unread: (c.unread || 0) + 1, lastMsg: content }
+              ? { ...c, unread: (c.unread || 0) + 1, lastMsg: text }
               : c
           )
         );
@@ -145,13 +234,16 @@ export default function Home() {
       refreshContacts();
     };
 
-    // Confirmation that our sent message was processed
     const handleMessageSent = (payload) => {
       const { _id, content, status } = payload;
+      // When E2EE is active, the server echoes back ciphertext.
+      // Look up the original plaintext from our pending map.
+      const plaintext = pendingPlaintextRef.current.get(content) || content;
+      pendingPlaintextRef.current.delete(content);
+
       setMessages((prev) => {
-        // Find the optimistic "Sending" message that matches this content
         const idx = prev.findIndex(
-          (m) => m.status === "Sending" && m.text === content
+          (m) => m.status === "Sending" && m.text === plaintext
         );
         if (idx !== -1) {
           const updated = [...prev];
@@ -196,7 +288,7 @@ export default function Home() {
       socket.off("user_typing", handleUserTyping);
       socket.off("message_status_update", handleMessageStatusUpdate);
     };
-  }, [socket, refreshContacts]);
+  }, [socket, refreshContacts, tryDecrypt, getContactPubKey]);
 
   // Clear unread count when switching to a conversation
   const select = (id) => {
@@ -233,6 +325,8 @@ export default function Home() {
             currentUserId={currentUserId}
             onBack={() => setMobileShowChat(false)}
             onMessageAdded={(msg) => setMessages((prev) => [...prev, msg])}
+            getSharedKey={getSharedKey}
+            pendingPlaintextRef={pendingPlaintextRef}
           />
         ) : (
           <WelcomeDashboard onNewChat={() => navigate("/discover")} />

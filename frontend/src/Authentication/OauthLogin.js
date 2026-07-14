@@ -4,10 +4,10 @@ import { generateKeys } from "./localSignup";
 import { auth, googleProvider , twitterProvider } from "@/lib/firebase";
 import { authApi } from "../lib/api";
 
-async function savePriKey(priKey) {
+async function savePriKey(priKey, userId) {
     const electronAPI = window.electronAPI;
-    if (electronAPI?.savePrivateKey) {
-      const electronResponse = await electronAPI.savePrivateKey(JSON.stringify(priKey));
+    if (electronAPI?.savePrivateKey && userId) {
+      const electronResponse = await electronAPI.savePrivateKey(JSON.stringify(priKey), userId);
 
       // Catch the returned error payload from the Main process catch block
       if (!electronResponse || !electronResponse.success) {
@@ -18,7 +18,7 @@ async function savePriKey(priKey) {
 
       console.log("Key saved successfully through safeStorage");
     } else {
-      alert("⚠️ Electron bridge window.electronAPI is missing!");
+      alert("⚠️ Electron bridge window.electronAPI is missing or userId is missing!");
     }
 }
 
@@ -40,12 +40,13 @@ export async function googleAuthLogin() {
             
             console.log("public key sending :", publicKey);
             
-            await authApi.oauthSignup( { 
+            const signupRes = await authApi.oauthSignup( { 
                 idToken, 
                 publicKey,
                 provider : "google" 
             }); 
-            await savePriKey(priKey)
+            const userId = signupRes.userId || signupRes.data?.userId;
+            await savePriKey(priKey, userId)
 
             return { success: true };
         }
@@ -82,12 +83,13 @@ export async function twitterAuthLogin() {
 
             console.log("key : " , publicKey);
             
-            await authApi.oauthSignup( { 
+            const signupRes = await authApi.oauthSignup( { 
                 idToken, 
                 publicKey,
                 provider: "twitter"
             }); 
-            await savePriKey(priKey)
+            const userId = signupRes.userId || signupRes.data?.userId;
+            await savePriKey(priKey, userId)
             return { success: true };
         }
         
