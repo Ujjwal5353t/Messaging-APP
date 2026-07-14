@@ -27,9 +27,13 @@ export const getContacts = async (userId) => {
                     participants: { $all: [userId, contact._id], $size: 2 }
                 }).populate("lastmsg").lean();
 
+                // Get unread count for this user from the conversation
+                const unread = convo?.unreadCount?.[userId.toString()] || 0;
+
                 return {
                     ...contact,
-                    lastMsg: convo && convo.lastmsg ? convo.lastmsg.content : null
+                    lastMsg: convo && convo.lastmsg ? convo.lastmsg.content : null,
+                    unread
                 };
             })
         );

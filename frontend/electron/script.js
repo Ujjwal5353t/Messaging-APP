@@ -20,7 +20,7 @@ function createWindow(){
         }
     })
     Menu.setApplicationMenu(null)
-    // win.webContents.openDevTools();
+    win.webContents.openDevTools();
 
     win.once("ready-to-show" , () => {
         win.maximize(),

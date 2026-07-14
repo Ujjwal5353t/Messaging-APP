@@ -14,7 +14,7 @@ const staticNav = [
 ];
 
 
-export default function AppRail() {
+export default function AppRail({ totalUnread = 0 }) {
   const loc = useLocation();
   const [currentUser, setCurrentUser] = useState("");
   const [pendingCount, setPendingCount] = useState(0);
@@ -48,7 +48,8 @@ export default function AppRail() {
 
   // Build nav with friend requests item (with dynamic badge)
   const nav = [
-    ...staticNav.slice(0, 2),
+    { to: "/home", icon: MessageCircle, label: "Chats", badge: totalUnread },
+    ...staticNav.slice(1, 2),
     { to: "/friend-requests", icon: UserCheck, label: "Requests", badge: pendingCount },
     ...staticNav.slice(2),
   ];

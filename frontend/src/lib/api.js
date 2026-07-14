@@ -16,11 +16,18 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      window.location.href = "/login";
+      const publicPaths = ["/login", "/signup"];
+      const isPublic = publicPaths.some((p) =>
+        window.location.pathname.startsWith(p)
+      );
+      if (!isPublic) {
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(error);
   }
 );
+
 
 console.log("api.js module is being evaluated!");
 

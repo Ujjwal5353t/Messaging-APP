@@ -5,6 +5,9 @@ export async function localLogin({ e, form, navigate }) {
   e.preventDefault();
 
   try {
+
+    
+
     await authApi.login(form);
     setTimeout(() => navigate("/home"), 600);
   } catch (err) {

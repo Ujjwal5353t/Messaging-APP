@@ -6,11 +6,13 @@ import { Moon, Bell, Shield, LogOut, ChevronRight, Eye, MessageSquare, Volume2 }
 // FIXED: Changed 'Navigate' to 'useNavigate' hook
 import { useNavigate } from "react-router-dom"; 
 import { authApi } from "../lib/api";
+import { useSocket } from "@/context/SocketContext";
 
 
 export default function Settings() {
   const navigate = useNavigate();
   const { theme, toggle } = useTheme();
+  const { disconnectSocket } = useSocket();
   const [notif, setNotif] = useState({ push: true, sounds: true, preview: false, mentions: true });
   const [privacy, setPrivacy] = useState({ readReceipts: true, lastSeen: true, discoverable: true });
 
@@ -18,7 +20,10 @@ export default function Settings() {
   const handleSignout = async (e) => {
     e.preventDefault();
     const res = await authApi.signout();
-    if( res.success === true ) navigate("/login"); 
+    if( res.success === true ) {
+      disconnectSocket();
+      navigate("/login"); 
+    }
   };
 
   return (

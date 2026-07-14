@@ -1,19 +1,63 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Phone, Video, Info, Smile, Paperclip, Image as ImageIcon, Mic, Send, Check, CheckCheck, ArrowLeft } from "lucide-react";
 import Avatar from "@/components/common/Avatar";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { messageApi, profileApi } from "../../lib/api";
+import { profileApi } from "../../lib/api";
+import { useSocket } from "@/context/SocketContext";
 
 const EMOJI = ["✨","🌙","☕","🌸","🔥","💫","🫶","😊","😂","🎧","🌿","💌"];
+const TYPING_DEBOUNCE_MS = 1500;
 
-export default function ChatWindow({ conversation, messages, onBack }) {
+export default function ChatWindow({ conversation, messages, currentUserId, onBack, onMessageAdded }) {
   const [text, setText] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
   const [local, setLocal] = useState(messages);
+  const [remoteTyping, setRemoteTyping] = useState(false);
   const endRef = useRef(null);
+  const typingTimerRef = useRef(null);
+  const isTypingRef = useRef(false);
+  const { socket } = useSocket();
+
+  const conversationId = conversation._id || conversation.id;
+
   useEffect(() => { setLocal(messages); }, [messages]);
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [local]);
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [local, remoteTyping]);
+
+  // Reset typing when conversation switches
+  useEffect(() => {
+    setRemoteTyping(false);
+  }, [conversationId]);
+
+  // Listen to typing events directly in ChatWindow for instant, reliable updates
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleTyping = ({ senderId, typing }) => {
+      // Only care about typing from the person we're currently chatting with
+      if (senderId === conversationId) {
+        setRemoteTyping(typing);
+      }
+    };
+
+    socket.on("user_typing", handleTyping);
+    return () => socket.off("user_typing", handleTyping);
+  }, [socket, conversationId]);
+
+  // Mark messages as seen when the window is open
+  useEffect(() => {
+    if (!socket || !currentUserId) return;
+    local.forEach((m) => {
+      if (m.from === "them" && m.status !== "Seen" && m.id && !m.id.startsWith("__pending")) {
+        socket.emit("message_seen", {
+          messageId: m.id,
+          senderId: conversationId,
+        });
+      }
+    });
+  }, [local, socket, currentUserId, conversationId]);
 
   const displayName = conversation.username || conversation.name || "Unknown";
   const initials = conversation.initials || (displayName ? displayName.substring(0, 2).toUpperCase() : "??");
@@ -22,11 +66,11 @@ export default function ChatWindow({ conversation, messages, onBack }) {
   const isOnline = conversation.online || (() => {
     if (!conversation.lastSeen) return false;
     const diffMs = new Date() - new Date(conversation.lastSeen);
-    return diffMs < 300000; 
+    return diffMs < 300000;
   })();
 
   const getLastSeenText = () => {
-    if (conversation.typing) {
+    if (remoteTyping) {
       return (
         <span className="text-accent flex items-center gap-1">
           typing
@@ -38,7 +82,7 @@ export default function ChatWindow({ conversation, messages, onBack }) {
         </span>
       );
     }
-    
+
     if (isOnline) {
       return (
         <><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Active now</>
@@ -46,9 +90,7 @@ export default function ChatWindow({ conversation, messages, onBack }) {
     }
 
     const dateString = conversation.lastSeen;
-    if (!dateString) {
-      return "Last seen recently";
-    }
+    if (!dateString) return "Last seen recently";
 
     try {
       const date = new Date(dateString);
@@ -56,55 +98,111 @@ export default function ChatWindow({ conversation, messages, onBack }) {
       const diffMs = now - date;
       const diffMins = Math.floor(diffMs / 60000);
 
-      if (diffMins < 60) {
-        return `Last seen ${diffMins}m ago`;
-      }
-
+      if (diffMins < 60) return `Last seen ${diffMins}m ago`;
       const diffHours = Math.floor(diffMins / 60);
-      if (diffHours < 24) {
-        return `Last seen ${diffHours}h ago`;
-      }
-
+      if (diffHours < 24) return `Last seen ${diffHours}h ago`;
       return `Last seen on ${date.toLocaleDateString()}`;
     } catch (e) {
       return "Last seen recently";
     }
   };
 
+  // Emit typing_stop and clean up timer
+  const stopTyping = useCallback(() => {
+    if (!socket || !currentUserId) return;
+    if (isTypingRef.current) {
+      socket.emit("typing_stop", {
+        senderId: currentUserId,
+        receiverId: conversationId,
+      });
+      isTypingRef.current = false;
+    }
+    clearTimeout(typingTimerRef.current);
+  }, [socket, currentUserId, conversationId]);
+
+  // Handle text input with typing indicator debounce
+  const handleTextChange = (e) => {
+    setText(e.target.value);
+    if (!socket || !currentUserId) return;
+
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
+      socket.emit("typing_start", {
+        senderId: currentUserId,
+        receiverId: conversationId,
+      });
+    }
+
+    // Reset the debounce timer
+    clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(stopTyping, TYPING_DEBOUNCE_MS);
+  };
+
+  // Cleanup typing on unmount or conversation switch
+  useEffect(() => {
+    return () => {
+      stopTyping();
+    };
+  }, [stopTyping]);
+
   const send = async (e) => {
     try {
       e?.preventDefault();
-      if (!text.trim()) return;
+      const trimmed = text.trim();
+      if (!trimmed) return;
 
-      const user = await profileApi.getProfile();
-      const userData = user.data || user;
-      const senderId = userData._id;
-      const receiverId = conversation._id;
-      const msg = text;
-      const data = {
-        senderId,
-        receiverId,
-        msg
-      };
+      stopTyping();
 
-      const response = await messageApi.sendMessage(data);
-      console.log("Message sent successfully ", response);
-
-      if (response && response.success) {
-        const newLocalMsg = {
-          id: response.response?._id || Date.now().toString(),
-          from: "me",
-          text: msg,
-          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          read: false
-        };
-        setLocal((prev) => [...prev, newLocalMsg]);
+      let senderId = currentUserId;
+      if (!senderId) {
+        const user = await profileApi.getProfile();
+        const userData = user.data || user;
+        senderId = userData._id;
       }
 
+      const receiverId = conversationId;
       setText("");
       setShowEmoji(false);
+
+      if (socket && socket.connected) {
+        // Optimistic UI
+        const pendingId = "__pending_" + Date.now();
+        const optimistic = {
+          id: pendingId,
+          from: "me",
+          text: trimmed,
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          read: false,
+          status: "Sending",
+        };
+        setLocal((prev) => [...prev, optimistic]);
+        if (onMessageAdded) onMessageAdded(optimistic);
+
+        socket.emit("send_message", {
+          senderId,
+          receiverId,
+          msg: trimmed,
+        });
+      } else {
+        // HTTP fallback
+        console.warn("[ChatWindow] Socket not connected — falling back to HTTP");
+        const { messageApi } = await import("../../lib/api");
+        const response = await messageApi.sendMessage({ senderId, receiverId, msg: trimmed });
+        if (response && response.success) {
+          const newMsg = {
+            id: response.response?._id || Date.now().toString(),
+            from: "me",
+            text: trimmed,
+            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            read: false,
+            status: "Sent",
+          };
+          setLocal((prev) => [...prev, newMsg]);
+          if (onMessageAdded) onMessageAdded(newMsg);
+        }
+      }
     } catch (error) {
-      console.log("Error occurred : ", error);
+      console.log("Error sending message:", error);
     }
   };
 
@@ -138,11 +236,17 @@ export default function ChatWindow({ conversation, messages, onBack }) {
             const grouped = prev && prev.from === m.from;
             return <Bubble key={m.id} m={m} grouped={grouped} convo={conversation} />;
           })}
-          {conversation.typing && (
-            <div className="flex items-end gap-2 animate-fade-in">
+
+          {/* Typing bubble — driven by local socket state */}
+          {remoteTyping && (
+            <div className="flex items-end gap-2 animate-fade-in mt-3">
               <Avatar initials={initials} color={avatarColor} size="xs" />
-              <div className="bg-card rounded-3xl rounded-bl-md px-5 py-3 shadow-bubble border border-border/40">
-                <span className="flex gap-1 text-muted-foreground"><span className="typing-dot"/><span className="typing-dot"/><span className="typing-dot"/></span>
+              <div className="bg-card rounded-3xl rounded-bl-md px-5 py-3.5 shadow-bubble border border-border/40">
+                <span className="flex gap-1.5 items-center">
+                  <span className="typing-dot" />
+                  <span className="typing-dot" />
+                  <span className="typing-dot" />
+                </span>
               </div>
             </div>
           )}
@@ -166,7 +270,8 @@ export default function ChatWindow({ conversation, messages, onBack }) {
             <IconBtn type="button"><ImageIcon className="h-5 w-5" /></IconBtn>
             <Input
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={handleTextChange}
+              onBlur={stopTyping}
               placeholder="Write something thoughtful…"
               className="flex-1 border-0 bg-transparent focus-visible:ring-0 h-11 text-[15px]"
             />
@@ -211,6 +316,18 @@ function Bubble({ m, grouped, convo }) {
   const convoInitials = convo.initials || (convoDisplayName ? convoDisplayName.substring(0, 2).toUpperCase() : "??");
   const convoAvatarColor = convo.avatarColor;
 
+  const StatusIcon = () => {
+    if (!mine) return null;
+    if (m.status === "Sending") {
+      return (
+        <span className="inline-block h-3 w-3 rounded-full border-2 border-muted-foreground/40 border-t-muted-foreground animate-spin" />
+      );
+    }
+    if (m.status === "Seen" || m.read) return <CheckCheck className="h-3.5 w-3.5 text-accent" />;
+    if (m.status === "Delivered") return <CheckCheck className="h-3.5 w-3.5 text-muted-foreground/60" />;
+    return <Check className="h-3.5 w-3.5 text-muted-foreground/60" />;
+  };
+
   return (
     <div className={cn("flex items-end gap-2 animate-bubble-in", mine ? "justify-end" : "justify-start", grouped ? "mt-0.5" : "mt-3")}>
       {!mine && (
@@ -232,7 +349,7 @@ function Bubble({ m, grouped, convo }) {
         </div>
         <div className={cn("flex items-center gap-1 mt-1 px-2 text-[11px] text-muted-foreground", mine ? "justify-end" : "justify-start")}>
           <span>{m.time}</span>
-          {mine && (m.read ? <CheckCheck className="h-3.5 w-3.5 text-accent" /> : <Check className="h-3.5 w-3.5" />)}
+          <StatusIcon />
         </div>
       </div>
     </div>
