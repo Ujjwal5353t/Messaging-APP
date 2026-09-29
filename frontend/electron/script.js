@@ -10,6 +10,10 @@ app.name = "VAU" ;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const distDir = app.isPackaged 
+  ? path.join(process.resourcesPath, "dist") 
+  : path.join(__dirname, "..", "dist");
+
 const mimeTypes = {
   ".html": "text/html",
   ".css": "text/css",
@@ -31,11 +35,11 @@ function startLocalServer() {
     localServer = http.createServer((req, res) => {
       const parsedUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`);
       let safePath = parsedUrl.pathname.replace(/^(\.\.[\/\\])+/, "");
-      let filePath = path.join(__dirname, "..", "dist", safePath === "/" ? "index.html" : safePath);
+      let filePath = path.join(distDir, safePath === "/" ? "index.html" : safePath);
 
       fs.stat(filePath, (err, stats) => {
         if (err || !stats.isFile()) {
-          filePath = path.join(__dirname, "..", "dist", "index.html");
+          filePath = path.join(distDir, "index.html");
         }
 
         const ext = path.extname(filePath).toLowerCase();
@@ -70,14 +74,14 @@ function createWindow(useDevServer){
     const win = new BrowserWindow({
         show : false,
         autoHideMenuBar : true,
+        icon: path.join(__dirname, "icon.ico"),
         webPreferences :{
             preload : path.join(__dirname , "preload.js") ,
             contextIsolation : true ,
             nodeIntegration : false
         }
     })
-    Menu.setApplicationMenu(null)
-    win.webContents.openDevTools();
+    Menu.setApplicationMenu(null);
 
     win.once("ready-to-show" , () => {
         win.maximize(),

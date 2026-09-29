@@ -1,6 +1,6 @@
 import { io } from "socket.io-client";
 
-const SOCKET_URL = "http://localhost:8080";
+const SOCKET_URL = "https://messaging-app-nylc.onrender.com";
 
 let socket = null;
 let currentConnectingId = null;

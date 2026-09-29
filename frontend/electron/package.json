@@ -1,5 +1,5 @@
 {
-  "name": "electron",
+  "name": "VAU",
   "version": "1.0.0",
   "description": "",
   "license": "ISC",
@@ -7,12 +7,36 @@
   "type": "module",
   "main": "script.js",
   "scripts": {
-    "start" : "electron ." ,
+    "start": "electron .",
     "watch": "nodemon --exec electron .",
+    "build": "electron-builder",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "build": {
+    "appId": "com.vau.messenger",
+    "productName": "VAU",
+    "directories": {
+      "output": "build-output"
+    },
+    "win": {
+      "icon": "icon.ico"
+    },
+    "files": [
+      "script.js",
+      "preload.js",
+      "icon.ico"
+    ],
+    "extraResources": [
+      {
+        "from": "../dist",
+        "to": "dist",
+        "filter": ["**/*"]
+      }
+    ]
+  },
   "devDependencies": {
-    "electron": "^42.5.0"
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3"
   },
   "dependencies": {
     "nodemon": "^3.1.14"
